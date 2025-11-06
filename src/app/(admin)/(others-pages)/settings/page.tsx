@@ -8,14 +8,17 @@ import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
+import { Mail, CreditCard } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
 
-  const EMAIL_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/email-config";
-  const GATEWAY_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/payment-gateways";
+  const EMAIL_URL =
+    "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/email-config";
+  const GATEWAY_URL =
+    "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/payment-gateways";
 
   const [emailSettings, setEmailSettings] = useState<any>({
     host: "",
@@ -32,49 +35,50 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"email" | "payment">("email");
 
-  // Fetch settings
-  const fetchSettings = async () => {
-    try {
-      // --- Email Config ---
-      const emailRes = await fetch(EMAIL_URL, {
-        headers: { Authorization: `Bearer ${token}`, apiKey },
-      });
-      const emailData = await emailRes.json();
+  // Fetch Settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        // --- Email Config ---
+        const emailRes = await fetch(EMAIL_URL, {
+          headers: { Authorization: `Bearer ${token}`, apiKey },
+        });
+        const emailData = await emailRes.json();
 
-      if (emailRes.ok && emailData.data) {
-        setEmailSettings({
-          host: emailData.data.smtp_host || "",
-          port: emailData.data.smtp_port || "",
-          login: emailData.data.smtp_user || "",
-          password: emailData.data.smtp_password || "",
-          emailFrom: emailData.data.email || "",
-          smtpType: emailData.data.smtp_type || "TLS",
-          is_active: emailData.data.is_active ?? true,
+        if (emailRes.ok && emailData.data) {
+          setEmailSettings({
+            host: emailData.data.smtp_host || "",
+            port: emailData.data.smtp_port || "",
+            login: emailData.data.smtp_user || "",
+            password: emailData.data.smtp_password || "",
+            emailFrom: emailData.data.email || "",
+            smtpType: emailData.data.smtp_type || "TLS",
+            is_active: emailData.data.is_active ?? true,
+          });
+        }
+
+        // --- Payment Gateways ---
+        const gatewayRes = await fetch(GATEWAY_URL, {
+          headers: { Authorization: `Bearer ${token}`, apiKey },
+        });
+        const gatewayData = await gatewayRes.json();
+
+        if (gatewayRes.ok && gatewayData.data) {
+          setPaymentGateways(gatewayData.data);
+        }
+      } catch {
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: "Failed to fetch settings.",
         });
       }
+    };
 
-      // --- Payment Gateways ---
-      const gatewayRes = await fetch(GATEWAY_URL, {
-        headers: { Authorization: `Bearer ${token}`, apiKey },
-      });
-      const gatewayData = await gatewayRes.json();
-
-      if (gatewayRes.ok && gatewayData.data) {
-        setPaymentGateways(gatewayData.data);
-      }
-    } catch {
-      setAlert({
-        variant: "error",
-        title: "Error",
-        message: "Failed to fetch settings.",
-      });
-    }
-  };
-
-  useEffect(() => {
     fetchSettings();
   }, []);
 
+  // Handle Input Change
   const handleEmailChange = (e: any) => {
     const { name, value, type, checked } = e.target;
     setEmailSettings((prev: any) => ({
@@ -83,6 +87,7 @@ export default function SettingsPage() {
     }));
   };
 
+  // Submit Email Config
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -140,110 +145,82 @@ export default function SettingsPage() {
       {alert && <Alert {...alert} showLink={false} />}
 
       <ComponentCard title="System Settings">
-        {/* --- Tabs --- */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-          <Button
-            color={activeTab === "email" ? "primary" : "secondary"}
+        {/* --- Bootstrap-style Tabs --- */}
+        <div
+          style={{
+            display: "flex",
+            borderBottom: "2px solid #e5e7eb",
+            marginBottom: "25px",
+            gap: "30px",
+          }}
+        >
+          <div
             onClick={() => setActiveTab("email")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 0",
+              cursor: "pointer",
+              borderBottom:
+                activeTab === "email" ? "3px solid #3b82f6" : "3px solid transparent",
+              color: activeTab === "email" ? "#3b82f6" : "#6b7280",
+              fontWeight: activeTab === "email" ? 600 : 500,
+            }}
           >
-            Email Config
-          </Button>
-          <Button
-            color={activeTab === "payment" ? "primary" : "secondary"}
+            <Mail size={18} />
+            <span>Email Config</span>
+          </div>
+
+          <div
             onClick={() => setActiveTab("payment")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 0",
+              cursor: "pointer",
+              borderBottom:
+                activeTab === "payment"
+                  ? "3px solid #3b82f6"
+                  : "3px solid transparent",
+              color: activeTab === "payment" ? "#3b82f6" : "#6b7280",
+              fontWeight: activeTab === "payment" ? 600 : 500,
+            }}
           >
-            Payment Gateways
-          </Button>
+            <CreditCard size={18} />
+            <span>Payment Gateways</span>
+          </div>
         </div>
 
         {/* --- Email Config --- */}
         {activeTab === "email" && (
           <form onSubmit={handleEmailSubmit} style={{ maxWidth: "700px" }}>
             <div style={{ display: "grid", gap: "15px" }}>
-              <div>
-                <label style={{ fontWeight: 600 }}>Host</label>
-                <input
-                  type="text"
-                  name="host"
-                  value={emailSettings.host}
-                  onChange={handleEmailChange}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontWeight: 600 }}>Port</label>
-                <input
-                  type="number"
-                  name="port"
-                  value={emailSettings.port}
-                  onChange={handleEmailChange}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontWeight: 600 }}>Login</label>
-                <input
-                  type="text"
-                  name="login"
-                  value={emailSettings.login}
-                  onChange={handleEmailChange}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontWeight: 600 }}>Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={emailSettings.password}
-                  onChange={handleEmailChange}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontWeight: 600 }}>Email From</label>
-                <input
-                  type="email"
-                  name="emailFrom"
-                  value={emailSettings.emailFrom}
-                  onChange={handleEmailChange}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                  }}
-                  required
-                />
-              </div>
+              {[
+                { label: "Host", name: "host", type: "text" },
+                { label: "Port", name: "port", type: "number" },
+                { label: "Login", name: "login", type: "text" },
+                { label: "Password", name: "password", type: "password" },
+                { label: "Email From", name: "emailFrom", type: "email" },
+              ].map((f) => (
+                <div key={f.name}>
+                  <label style={{ fontWeight: 600 }}>{f.label}</label>
+                  <input
+                    type={f.type}
+                    name={f.name}
+                    value={emailSettings[f.name]}
+                    onChange={handleEmailChange}
+                    style={{
+                      width: "100%",
+                      padding: "8px",
+                      border: "1px solid #ddd",
+                      borderRadius: "6px",
+                    }}
+                    required
+                  />
+                </div>
+              ))}
 
               <div>
                 <label style={{ fontWeight: 600 }}>SMTP Type</label>
@@ -354,6 +331,7 @@ export default function SettingsPage() {
                       }}
                     />
                   </div>
+
                   <Button
                     color="info"
                     onClick={() =>
