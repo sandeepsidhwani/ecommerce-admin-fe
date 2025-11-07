@@ -17,7 +17,7 @@ import {
   TableIcon,
   UserCircleIcon,
 } from "../icons/index";
-import { Boxes, FolderIcon, FolderKanban, Layers3, LayersIcon, Package } from "lucide-react";
+import { BadgePercent, Boxes, FolderIcon, FolderKanban, Layers3, LayersIcon, Package } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -66,6 +66,11 @@ const navItems: NavItem[] = [
     icon: <HorizontaLDots />,
     name: "Coupons",
     path: "/coupons",
+  },
+  {
+    icon: <BadgePercent />,
+    name: "Deals",
+    path: "/deals",
   },
   // {
   //   icon: <GridIcon />,
