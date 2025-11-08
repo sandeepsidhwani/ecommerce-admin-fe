@@ -25,13 +25,10 @@ export default function ProductsPage() {
   const apiKey = "ecommerceapp";
   const { adminToken: token } = parseCookies();
 
+  // page items come from server per-page
   const [products, setProducts] = useState<Product[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-
+  // categories/sub filters (server fetched)
   const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
-  const [types, setTypes] = useState<any[]>([]);
-
   const [filteredSubcategories, setFilteredSubcategories] = useState<any[]>([]);
   const [filteredTypes, setFilteredTypes] = useState<any[]>([]);
 
@@ -45,36 +42,83 @@ export default function ProductsPage() {
     subcategory_type_id: "",
   });
 
-  // ✅ Fetch categories and products immediately
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const itemsPerPage = 20;
+
+  const headers = { Authorization: `Bearer ${token}`, apiKey };
+
+  const extractTotalFromResponse = (resp: any): number | null => {
+    if (!resp) return null;
+    if (typeof resp.total === "number") return resp.total;
+    if (resp.meta && typeof resp.meta.total === "number") return resp.meta.total;
+    if (resp.pagination && typeof resp.pagination.total === "number")
+      return resp.pagination.total;
+    if (resp.data && Array.isArray(resp.data) && typeof resp.data.total === "number")
+      return resp.data.total;
+    return null;
+  };
+
+  const fetchProducts = async (page = 1) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", String(itemsPerPage));
+      if (filters.category_id) params.set("category_id", filters.category_id);
+      if (filters.subcategory_id) params.set("subcategory_id", filters.subcategory_id);
+      if (filters.subcategory_type_id)
+        params.set("subcategory_type_id", filters.subcategory_type_id);
+
+      const url = `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/product?${params.toString()}`;
+
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+
+      const possibleArray =
+        (data && Array.isArray(data.data) && data.data) ||
+        (data && Array.isArray(data.results) && data.results) ||
+        [];
+
+      setProducts(possibleArray);
+
+      const extractedTotal = extractTotalFromResponse(data);
+      if (extractedTotal !== null) {
+        setTotalCount(extractedTotal);
+      } else {
+        if (totalCount === null) setTotalCount(2700);
+      }
+
+      setCurrentPage(page);
+    } catch (err) {
+      console.error("fetchProducts error:", err);
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Failed to load products for page " + page,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
+      setLoading(true);
       try {
-        const [catRes, productRes] = await Promise.all([
-          fetch("https://ecommerce.sidhwanitechnologies.com/api/v1/admin/category", {
-            headers: { Authorization: `Bearer ${token}`, apiKey },
-          }),
-          fetch("https://ecommerce.sidhwanitechnologies.com/api/v1/admin/product", {
-            headers: { Authorization: `Bearer ${token}`, apiKey },
-          }),
-        ]);
-
-        const [catData, productData] = await Promise.all([
-          catRes.json(),
-          productRes.json(),
-        ]);
-
-        if (catData.success) setCategories(catData.data);
-        if (productData.success && Array.isArray(productData.data)) {
-          setProducts(productData.data);
-          setAllProducts(productData.data);
-        } else {
-          setProducts([]);
-        }
-      } catch {
+        const catRes = await fetch(
+          "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/category",
+          { headers }
+        );
+        const catData = await catRes.json();
+        if (catData.success && Array.isArray(catData.data)) setCategories(catData.data);
+        await fetchProducts(1);
+      } catch (err) {
+        console.error(err);
         setAlert({
           variant: "error",
           title: "Error",
-          message: "Failed to load products or categories.",
+          message: "Failed to load initial data.",
         });
       } finally {
         setLoading(false);
@@ -84,51 +128,43 @@ export default function ProductsPage() {
     fetchInitialData();
   }, [token]);
 
-  // ✅ Fetch subcategories based on selected category
+  // Fetch subcategories/types for filters
   const fetchSubcategories = async (categoryId: number) => {
     try {
       const res = await fetch(
         `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory?category_id=${categoryId}`,
-        {
-          headers: { Authorization: `Bearer ${token}`, apiKey },
-        }
+        { headers }
       );
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setFilteredSubcategories(data.data);
-        setFilteredTypes([]); // Reset types
+        setFilteredTypes([]);
       }
     } catch {
       console.warn("Failed to load subcategories");
     }
   };
 
-  // ✅ Fetch subcategory types based on selected subcategory
   const fetchSubcategoryTypes = async (subcategoryId: number) => {
     try {
       const res = await fetch(
         `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory-type?subcategory_id=${subcategoryId}`,
-        {
-          headers: { Authorization: `Bearer ${token}`, apiKey },
-        }
+        { headers }
       );
       const data = await res.json();
-      if (data.success) setFilteredTypes(data.data);
+      if (data.success && Array.isArray(data.data)) setFilteredTypes(data.data);
     } catch {
       console.warn("Failed to load subcategory types");
     }
   };
 
-  // ✅ Handle dropdown logic dynamically
   const handleFilterChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
 
     setFilters((prev) => ({ ...prev, [name]: value }));
 
     if (name === "category_id") {
-      if (value) {
-        fetchSubcategories(parseInt(value));
-      }
+      if (value) fetchSubcategories(parseInt(value));
       setFilters({
         category_id: value,
         subcategory_id: "",
@@ -137,9 +173,7 @@ export default function ProductsPage() {
     }
 
     if (name === "subcategory_id") {
-      if (value) {
-        fetchSubcategoryTypes(parseInt(value));
-      }
+      if (value) fetchSubcategoryTypes(parseInt(value));
       setFilters((prev) => ({
         ...prev,
         subcategory_id: value,
@@ -150,39 +184,14 @@ export default function ProductsPage() {
     if (name === "subcategory_type_id") {
       setFilters((prev) => ({ ...prev, subcategory_type_id: value }));
     }
+    setTimeout(() => fetchProducts(1), 0);
   };
-
-  // ✅ Filter products client-side instantly
-  useEffect(() => {
-    if (
-      !filters.category_id &&
-      !filters.subcategory_id &&
-      !filters.subcategory_type_id
-    ) {
-      setProducts(allProducts);
-      return;
-    }
-
-    const catId = filters.category_id ? parseInt(filters.category_id) : null;
-    const subId = filters.subcategory_id ? parseInt(filters.subcategory_id) : null;
-    const typeId = filters.subcategory_type_id
-      ? parseInt(filters.subcategory_type_id)
-      : null;
-
-    const filtered = allProducts.filter((p) => {
-      const matchCat = !catId || p.category_id === catId;
-      const matchSub = !subId || p.subcategory_id === subId;
-      const matchType = !typeId || p.subcategory_type_id === typeId;
-      return matchCat && matchSub && matchType;
-    });
-
-    setProducts(filtered);
-  }, [filters, allProducts]);
 
   const handleClearFilters = () => {
     setFilters({ category_id: "", subcategory_id: "", subcategory_type_id: "" });
     setFilteredSubcategories([]);
     setFilteredTypes([]);
+    fetchProducts(1);
   };
 
   const handleDelete = async (id: number) => {
@@ -192,25 +201,75 @@ export default function ProductsPage() {
         `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/product/${id}`,
         {
           method: "DELETE",
-          headers: { Authorization: `Bearer ${token}`, apiKey },
+          headers,
         }
       );
       const data = await res.json();
       if (data.success) {
-        setProducts(products.filter((p) => p.id !== id));
-        setAllProducts(allProducts.filter((p) => p.id !== id));
         setAlert({
           variant: "success",
           title: "Deleted",
           message: "Product deleted successfully!",
         });
+        const computedTotal = (totalCount ?? 2700) - 1;
+        const computedPages = Math.max(1, Math.ceil(computedTotal / itemsPerPage));
+        const nextPage = Math.min(currentPage, computedPages);
+        setTotalCount(computedTotal);
+        await fetchProducts(nextPage);
       } else {
         setAlert({ variant: "error", title: "Error", message: "Delete failed." });
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       setAlert({ variant: "error", title: "Error", message: "Request failed." });
     }
   };
+
+  const actualTotal = totalCount ?? 2700;
+  const totalPages = Math.max(1, Math.ceil(actualTotal / itemsPerPage));
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    fetchProducts(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const buildPageButtons = (total: number, current: number, maxButtons = 10) => {
+    if (total <= maxButtons) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages: (number | string)[] = [];
+    const left = 1;
+    const right = total;
+
+    const siblingCount = Math.floor((maxButtons - 3) / 2); // leave space for first,last and two ellipses maybe
+    let start = Math.max(current - siblingCount, 2);
+    let end = Math.min(current + siblingCount, total - 1);
+
+    if (current - 1 <= siblingCount) {
+      start = 2;
+      end = Math.min(maxButtons - 2, total - 1);
+    }
+    if (total - current <= siblingCount) {
+      start = Math.max(total - (maxButtons - 3), 2);
+      end = total - 1;
+    }
+
+    pages.push(left);
+
+    if (start > 2) pages.push("...");
+
+    for (let p = start; p <= end; p++) pages.push(p);
+
+    if (end < total - 1) pages.push("...");
+
+    pages.push(right);
+
+    return pages;
+  };
+
+  const pageButtons = buildPageButtons(totalPages, currentPage, 12);
 
   return (
     <div>
@@ -226,7 +285,6 @@ export default function ProductsPage() {
       )}
 
       <ComponentCard title="Products List">
-        {/* --- Buttons --- */}
         <div
           style={{
             display: "flex",
@@ -270,7 +328,6 @@ export default function ProductsPage() {
           </Link>
         </div>
 
-        {/* --- Filters Section (Instantly visible when toggled) --- */}
         {filterVisible && (
           <div
             style={{
@@ -285,7 +342,6 @@ export default function ProductsPage() {
               transition: "all 0.3s ease",
             }}
           >
-            {/* Category */}
             <div>
               <label>Category</label>
               <select
@@ -308,7 +364,6 @@ export default function ProductsPage() {
               </select>
             </div>
 
-            {/* Subcategory */}
             {filteredSubcategories.length > 0 && (
               <div>
                 <label>Subcategory</label>
@@ -333,7 +388,6 @@ export default function ProductsPage() {
               </div>
             )}
 
-            {/* Type */}
             {filteredTypes.length > 0 && (
               <div>
                 <label>Subcategory Type</label>
@@ -376,121 +430,177 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {/* --- Product Table --- */}
         {loading ? (
           <p style={{ textAlign: "center" }}>Loading...</p>
         ) : (
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              overflow: "hidden",
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  background: "#f9fafb",
-                  textAlign: "left",
-                  borderBottom: "2px solid #e5e7eb",
-                }}
-              >
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>#</th>
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>Name</th>
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>Price</th>
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>Quantity</th>
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>Status</th>
-                <th
+          <>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                overflow: "hidden",
+              }}
+            >
+              <thead>
+                <tr
                   style={{
-                    padding: "12px 10px",
-                    fontWeight: 600,
-                    textAlign: "center",
+                    background: "#f9fafb",
+                    textAlign: "left",
+                    borderBottom: "2px solid #e5e7eb",
                   }}
                 >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>#</th>
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>Name</th>
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>Price</th>
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>Quantity</th>
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>Status</th>
+                  <th
                     style={{
+                      padding: "12px 10px",
+                      fontWeight: 600,
                       textAlign: "center",
-                      padding: "15px",
-                      color: "#777",
                     }}
                   >
-                    No products found.
-                  </td>
+                    Actions
+                  </th>
                 </tr>
-              ) : (
-                products.map((p, index) => (
-                  <tr
-                    key={p.id}
-                    style={{
-                      borderTop: "1px solid #e5e7eb",
-                      background: index % 2 === 0 ? "#fff" : "#fdfdfd",
-                    }}
-                  >
-                    <td style={{ padding: "10px" }}>{index + 1}</td>
-                    <td style={{ padding: "10px", fontWeight: 500 }}>{p.name}</td>
-                    <td style={{ padding: "10px" }}>₹{p.price}</td>
-                    <td style={{ padding: "10px" }}>{p.quantity}</td>
-                    <td style={{ padding: "10px" }}>
-                      <Badge color={p.is_active ? "success" : "error"} variant="solid">
-                        {p.is_active ? "Active" : "Inactive"}
-                      </Badge>
+              </thead>
+
+              <tbody>
+                {products.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      style={{
+                        textAlign: "center",
+                        padding: "15px",
+                        color: "#777",
+                      }}
+                    >
+                      No products found.
                     </td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>
-                      <div
+                  </tr>
+                ) : (
+                  products.map((p, idx) => {
+                    const globalIndex = (currentPage - 1) * itemsPerPage + idx + 1;
+                    return (
+                      <tr
+                        key={p.id}
                         style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          gap: "8px",
+                          borderTop: "1px solid #e5e7eb",
+                          background: idx % 2 === 0 ? "#fff" : "#fdfdfd",
                         }}
                       >
-                        <Link href={`/product/${p.id}`}>
-                          <Button
-                            color="info"
+                        <td style={{ padding: "10px" }}>{globalIndex}</td>
+                        <td style={{ padding: "10px", fontWeight: 500 }}>{p.name}</td>
+                        <td style={{ padding: "10px" }}>₹{p.price}</td>
+                        <td style={{ padding: "10px" }}>{p.quantity}</td>
+                        <td style={{ padding: "10px" }}>
+                          <Badge color={p.is_active ? "success" : "error"} variant="solid">
+                            {p.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </td>
+                        <td style={{ padding: "10px", textAlign: "center" }}>
+                          <div
                             style={{
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "6px",
                               display: "flex",
                               justifyContent: "center",
                               alignItems: "center",
+                              gap: "8px",
                             }}
                           >
-                            <Pencil />
-                          </Button>
-                        </Link>
+                            <Link href={`/product/${p.id}`}>
+                              <Button
+                                color="info"
+                                style={{
+                                  width: "36px",
+                                  height: "36px",
+                                  borderRadius: "6px",
+                                  display: "flex",
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Pencil />
+                              </Button>
+                            </Link>
 
-                        <Button
-                          color="error"
-                          onClick={() => handleDelete(p.id)}
-                          style={{
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "6px",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                            <Button
+                              color="error"
+                              onClick={() => handleDelete(p.id)}
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "6px",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+
+            {totalPages > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginTop: "20px",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Prev
+                </Button>
+
+                {pageButtons.map((p, i) =>
+                  typeof p === "string" ? (
+                    <span key={"dot-" + i} style={{ padding: "8px 6px" }}>
+                      {p}
+                    </span>
+                  ) : (
+                    <Button
+                      key={p}
+                      variant={currentPage === p ? "solid" : "outline"}
+                      onClick={() => handlePageChange(p as number)}
+                      style={{
+                        minWidth: "36px",
+                        borderRadius: "6px",
+                        background: currentPage === p ? "#2563eb" : "transparent",
+                        color: currentPage === p ? "#fff" : "#000",
+                      }}
+                    >
+                      {p}
+                    </Button>
+                  )
+                )}
+
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </ComponentCard>
     </div>

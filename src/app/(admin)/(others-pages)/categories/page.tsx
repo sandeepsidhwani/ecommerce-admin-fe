@@ -28,16 +28,31 @@ export default function CategoriesPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   const fetchCategories = async () => {
     try {
-      const res = await fetch("https://ecommerce.sidhwanitechnologies.com/api/v1/admin/category", {
-        headers: { Authorization: `Bearer ${token}`, apiKey },
-      });
+      const res = await fetch(
+        "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/category",
+        {
+          headers: { Authorization: `Bearer ${token}`, apiKey },
+        }
+      );
       const data = await res.json();
       if (data.success && data.data) setCategories(data.data);
-      else setAlert({ variant: "error", title: "Error", message: "Failed to load categories." });
+      else
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: "Failed to load categories.",
+        });
     } catch {
-      setAlert({ variant: "error", title: "Error", message: "Network error while loading categories." });
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Network error while loading categories.",
+      });
     } finally {
       setLoading(false);
     }
@@ -55,19 +70,41 @@ export default function CategoriesPage() {
       );
       const data = await res.json();
       if (data.success) {
-        setCategories(categories.filter((c) => c.id !== id));
-        setAlert({ variant: "success", title: "Deleted", message: "Category deleted successfully!" });
+        setCategories((prev) => prev.filter((c) => c.id !== id));
+        setAlert({
+          variant: "success",
+          title: "Deleted",
+          message: "Category deleted successfully!",
+        });
       } else {
         setAlert({ variant: "error", title: "Error", message: "Delete failed." });
       }
     } catch {
-      setAlert({ variant: "error", title: "Error", message: "Request failed." });
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Request failed.",
+      });
     }
   };
 
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(categories.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentCategories = categories.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   return (
     <div>
@@ -83,7 +120,13 @@ export default function CategoriesPage() {
       )}
 
       <ComponentCard title="Category List">
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "15px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "15px",
+          }}
+        >
           <Link href="/add-category">
             <Button
               color="primary"
@@ -104,75 +147,117 @@ export default function CategoriesPage() {
 
         {loading ? (
           <p style={{ textAlign: "center" }}>Loading...</p>
+        ) : currentCategories.length === 0 ? (
+          <Alert
+            variant="info"
+            title="No Data"
+            message="No categories found."
+            showLink={false}
+          />
         ) : (
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              overflow: "hidden",
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  background: "#f9fafb",
-                  textAlign: "left",
-                  borderBottom: "2px solid #e5e7eb",
-                }}
-              >
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>#</th>
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>Category Name</th>
-                <th style={{ padding: "12px 10px", fontWeight: 600 }}>Image</th>
-                <th style={{ padding: "12px 10px", fontWeight: 600, textAlign: "center" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((cat, index) => (
+          <>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                overflow: "hidden",
+              }}
+            >
+              <thead>
                 <tr
-                  key={cat.id}
                   style={{
-                    borderTop: "1px solid #e5e7eb",
-                    background: index % 2 === 0 ? "#fff" : "#fdfdfd",
+                    background: "#f9fafb",
+                    textAlign: "left",
+                    borderBottom: "2px solid #e5e7eb",
                   }}
                 >
-                  <td style={{ padding: "10px" }}>{index + 1}</td>
-                  <td style={{ padding: "10px", fontWeight: 500 }}>
-                    {cat.name}
-                    {cat.slug && (
-                      <Badge
-                        color="secondary"
-                        variant="solid"
-                        style={{ marginLeft: "6px" }}
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>#</th>
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>
+                    Category Name
+                  </th>
+                  <th style={{ padding: "12px 10px", fontWeight: 600 }}>
+                    Image
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 10px",
+                      fontWeight: 600,
+                      textAlign: "center",
+                    }}
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentCategories.map((cat, index) => (
+                  <tr
+                    key={cat.id}
+                    style={{
+                      borderTop: "1px solid #e5e7eb",
+                      background: index % 2 === 0 ? "#fff" : "#fdfdfd",
+                    }}
+                  >
+                    <td style={{ padding: "10px" }}>
+                      {startIndex + index + 1}
+                    </td>
+                    <td style={{ padding: "10px", fontWeight: 500 }}>
+                      {cat.name}
+                      {cat.slug && (
+                        <Badge
+                          color="secondary"
+                          variant="solid"
+                          style={{ marginLeft: "6px" }}
+                        >
+                          {cat.slug}
+                        </Badge>
+                      )}
+                    </td>
+                    <td style={{ padding: "10px" }}>
+                      {cat.image_url ? (
+                        <img
+                          src={cat.image_url}
+                          alt={cat.name}
+                          style={{
+                            width: "60px",
+                            height: "60px",
+                            borderRadius: "6px",
+                          }}
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td style={{ padding: "10px", textAlign: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
                       >
-                        {cat.slug}
-                      </Badge>
-                    )}
-                  </td>
-                  <td style={{ padding: "10px" }}>
-                    {cat.image_url ? (
-                      <img
-                        src={cat.image_url}
-                        alt={cat.name}
-                        style={{ width: "60px", height: "60px", borderRadius: "6px" }}
-                      />
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td style={{ padding: "10px", textAlign: "center" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <Link href={`/edit-category/${cat.id}`}>
+                        <Link href={`/edit-category/${cat.id}`}>
+                          <Button
+                            color="info"
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "6px",
+                            }}
+                          >
+                            <Pencil style={{ width: "16px", height: "16px" }} />
+                          </Button>
+                        </Link>
+
                         <Button
-                          color="info"
+                          color="error"
+                          onClick={() => handleDelete(cat.id)}
                           style={{
                             display: "flex",
                             justifyContent: "center",
@@ -182,30 +267,63 @@ export default function CategoriesPage() {
                             borderRadius: "6px",
                           }}
                         >
-                          <Pencil style={{ width: "16px", height: "16px" }} />
+                          <Trash2 style={{ width: "16px", height: "16px" }} />
                         </Button>
-                      </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-                      <Button
-                        color="error"
-                        onClick={() => handleDelete(cat.id)}
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "6px",
-                        }}
-                      >
-                        <Trash2 style={{ width: "16px", height: "16px" }} />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            {totalPages > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginTop: "24px",
+                  flexWrap: "wrap",
+                  padding: "10px",
+                }}
+              >
+                <Button
+                  color="secondary"
+                  variant="outline"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                >
+                  Prev
+                </Button>
+
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <Button
+                    key={i + 1}
+                    onClick={() => handlePageChange(i + 1)}
+                    color={currentPage === i + 1 ? "primary" : "secondary"}
+                    variant={currentPage === i + 1 ? "solid" : "outline"}
+                    style={{
+                      minWidth: "36px",
+                      borderRadius: "6px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {i + 1}
+                  </Button>
+                ))}
+
+                <Button
+                  color="secondary"
+                  variant="outline"
+                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </ComponentCard>
     </div>
