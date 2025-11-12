@@ -1,83 +1,132 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import { parseCookies } from "nookies";
-import Link from "next/link";
 import { Eye } from "lucide-react";
+
+type User = {
+  id?: number;
+  name?: string;
+  email?: string;
+};
+
+type Address = {
+  name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+};
+
+type Order = {
+  id: number;
+  user?: User;
+  address?: Address;
+  grand_total?: number | string;
+  created_at?: string;
+  // other fields from API can exist but are optional
+  [key: string]: unknown;
+};
+
+type AlertState = {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+};
 
 export default function OrdersPage() {
   const apiKey = "ecommerceapp";
   const { adminToken: token } = parseCookies();
 
-  const [orders, setOrders] = useState<any[]>([]);
-  const [alert, setAlert] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [alert, setAlert] = useState<AlertState | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const itemsPerPage = 20;
 
-  const headers = { Authorization: `Bearer ${token}`, apiKey };
+  const headers = useMemo(() => ({ Authorization: `Bearer ${token}`, apiKey }), [token]);
 
-  const extractTotalFromResponse = (resp: any): number | null => {
-    if (!resp) return null;
-    if (typeof resp.total === "number") return resp.total;
-    if (resp.meta && typeof resp.meta.total === "number") return resp.meta.total;
-    if (resp.pagination && typeof resp.pagination.total === "number")
-      return resp.pagination.total;
-    if (resp.data && typeof resp.data.total === "number") return resp.data.total;
+  const extractTotalFromResponse = (resp: unknown): number | null => {
+    if (!resp || typeof resp !== "object") return null;
+    const r = resp as Record<string, unknown>;
+    if (typeof r.total === "number") return r.total;
+    if (r.meta && typeof (r.meta as Record<string, unknown>).total === "number")
+      return (r.meta as Record<string, number>).total;
+    if (
+      r.pagination &&
+      typeof (r.pagination as Record<string, unknown>).total === "number"
+    )
+      return (r.pagination as Record<string, number>).total;
+    if (r.data && typeof (r.data as Record<string, unknown>).total === "number")
+      return (r.data as Record<string, number>).total;
     return null;
   };
 
-  const fetchOrders = async (page = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("limit", String(itemsPerPage));
+  const fetchOrders = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        params.set("limit", String(itemsPerPage));
 
-      const url = `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/orders?${params.toString()}`;
+        const url = `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/orders?${params.toString()}`;
 
-      const res = await fetch(url, { headers });
-      const data = await res.json();
+        const res = await fetch(url, { headers });
+        const data = await res.json();
 
-      if (data.success && Array.isArray(data.data)) {
-        setOrders(data.data);
-      } else {
+        if (data && data.success && Array.isArray(data.data)) {
+          setOrders(data.data as Order[]);
+        } else if (data && Array.isArray(data.data)) {
+          // in case API returns success false but still provides data
+          setOrders(data.data as Order[]);
+        } else {
+          setOrders([]);
+          setAlert({
+            variant: "error",
+            title: "Error",
+            message: (data && (data.msg || data.message)) || "Failed to fetch orders.",
+          });
+        }
+
+        const extractedTotal = extractTotalFromResponse(data);
+        if (extractedTotal !== null) {
+          setTotalCount(extractedTotal);
+        } else if (totalCount === null) {
+          // fallback estimate only once
+          setTotalCount(2700);
+        }
+
+        setCurrentPage(page);
+      } catch (err) {
+        console.error("fetchOrders error:", err);
         setAlert({
           variant: "error",
           title: "Error",
-          message: data.msg || "Failed to fetch orders.",
+          message: "Failed to load orders.",
         });
+      } finally {
+        setLoading(false);
       }
-
-      const extractedTotal = extractTotalFromResponse(data);
-      if (extractedTotal !== null) {
-        setTotalCount(extractedTotal);
-      } else {
-        if (totalCount === null) setTotalCount(2700);
-      }
-
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("fetchOrders error:", err);
-      setAlert({
-        variant: "error",
-        title: "Error",
-        message: "Failed to load orders.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [headers, itemsPerPage, totalCount]
+  );
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      setOrders([]);
+      return;
+    }
     fetchOrders(1);
-  }, [token]);
+    // fetchOrders is stable via useCallback; include it in deps
+  }, [fetchOrders, token]);
 
   const actualTotal = totalCount ?? 2700;
   const totalPages = Math.max(1, Math.ceil(actualTotal / itemsPerPage));
@@ -194,8 +243,8 @@ export default function OrdersPage() {
                 ) : (
                   orders.map((order, idx) => {
                     const globalIndex = (currentPage - 1) * itemsPerPage + idx + 1;
-                    const user = order.user || {};
-                    const address = order.address || {};
+                    const user = (order.user as User) ?? {};
+                    const address = (order.address as Address) ?? {};
 
                     return (
                       <tr
@@ -207,24 +256,26 @@ export default function OrdersPage() {
                       >
                         <td style={{ padding: "10px" }}>{globalIndex}</td>
                         <td style={{ padding: "10px" }}>
-                          <strong>{user.name || "N/A"}</strong>
+                          <strong>{user.name ?? "N/A"}</strong>
                           <br />
                           <span style={{ color: "#555", fontSize: "0.9rem" }}>
-                            {user.email || ""}
+                            {user.email ?? ""}
                           </span>
                         </td>
                         <td style={{ padding: "10px" }}>
                           <Badge color="info" variant="solid">
-                            ₹{order.grand_total}
+                            ₹{String(order.grand_total ?? "0")}
                           </Badge>
                         </td>
                         <td style={{ padding: "10px", fontSize: "0.9rem" }}>
-                          {address.name && <strong>{address.name}</strong>}{" "}
+                          {address.name && <strong>{address.name}</strong>}
                           <br />
-                          {address.address}, {address.city}, {address.state}
+                          {address.address ? `${address.address}, ` : ""}
+                          {address.city ? `${address.city}, ` : ""}
+                          {address.state ?? ""}
                         </td>
                         <td style={{ padding: "10px" }}>
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {order.created_at ? new Date(String(order.created_at)).toLocaleDateString() : "-"}
                         </td>
                         <td style={{ padding: "10px", textAlign: "center" }}>
                           <Link href={`/admin/orders/${order.id}`}>
@@ -278,7 +329,7 @@ export default function OrdersPage() {
                   ) : (
                     <Button
                       key={p}
-                      variant={currentPage === p ? "solid" : "outline"}
+                      variant={currentPage === p ? "primary" : "outline"}
                       onClick={() => handlePageChange(p as number)}
                       style={{
                         minWidth: "36px",

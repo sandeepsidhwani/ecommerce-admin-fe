@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useEffect, useState, FormEvent } from "react";
+import React, { useEffect, useState, FormEvent, ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
+import Image from "next/image";
+
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
 
 export default function EditAdvertisementPage() {
   const router = useRouter();
@@ -21,10 +27,11 @@ export default function EditAdvertisementPage() {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isActive, setIsActive] = useState(true);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // ✅ Fetch Advertisement Details
   useEffect(() => {
     const fetchAd = async () => {
       try {
@@ -38,18 +45,34 @@ export default function EditAdvertisementPage() {
           setCurrentFile(MEDIA_URL + a.media_path);
           setIsActive(a.is_active);
         } else {
-          setAlert({ variant: "error", title: "Error", message: data.message || "Failed to load advertisement." });
+          setAlert({
+            variant: "error",
+            title: "Error",
+            message: data.message || "Failed to load advertisement.",
+          });
         }
       } catch {
-        setAlert({ variant: "error", title: "Network Error", message: "Unable to load advertisement." });
+        setAlert({
+          variant: "error",
+          title: "Network Error",
+          message: "Unable to load advertisement.",
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) fetchAd();
-  }, [id]);
+    if (id && token) fetchAd();
+  }, [id, token]); // ✅ token added to dependencies
 
+  // ✅ Handle File Input Safely
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  // ✅ Handle Submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -66,18 +89,31 @@ export default function EditAdvertisementPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setAlert({ variant: "success", title: "Updated", message: "Advertisement updated successfully!" });
+        setAlert({
+          variant: "success",
+          title: "Updated",
+          message: "Advertisement updated successfully!",
+        });
         setTimeout(() => router.push("/advertisements"), 1000);
       } else {
-        setAlert({ variant: "error", title: "Error", message: data.message || "Failed to update advertisement." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: data.message || "Failed to update advertisement.",
+        });
       }
     } catch {
-      setAlert({ variant: "error", title: "Network Error", message: "Error updating advertisement." });
+      setAlert({
+        variant: "error",
+        title: "Network Error",
+        message: "Error updating advertisement.",
+      });
     } finally {
       setSaving(false);
     }
   };
 
+  // ✅ Render
   return (
     <div>
       <PageBreadcrumb pageTitle="Edit Advertisement" />
@@ -88,41 +124,75 @@ export default function EditAdvertisementPage() {
           <p style={{ textAlign: "center", padding: "10px" }}>Loading...</p>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
+            {/* Media Type */}
             <div>
               <label style={{ fontWeight: 600 }}>Media Type</label>
               <select
                 value={mediaType}
                 onChange={(e) => setMediaType(e.target.value)}
-                style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  border: "1px solid #ddd",
+                  borderRadius: "6px",
+                }}
               >
                 <option value="image">Image</option>
                 <option value="video">Video</option>
               </select>
             </div>
 
+            {/* Current File */}
             <div>
               <label style={{ fontWeight: 600 }}>Current File</label>
               {currentFile ? (
                 mediaType === "image" ? (
-                  <img src={currentFile} alt="ad" style={{ width: "120px", borderRadius: "6px", border: "1px solid #ddd", padding: "4px" }} />
+                  <Image
+                    src={currentFile}
+                    alt="ad"
+                    width={150}
+                    height={100}
+                    style={{
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      padding: "4px",
+                      objectFit: "cover",
+                    }}
+                  />
                 ) : (
-                  <video src={currentFile} controls style={{ width: "150px", borderRadius: "6px", border: "1px solid #ddd", padding: "4px" }} />
+                  <video
+                    src={currentFile}
+                    controls
+                    style={{
+                      width: "150px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      padding: "4px",
+                    }}
+                  />
                 )
               ) : (
                 <p>No file uploaded</p>
               )}
             </div>
 
+            {/* Upload New File */}
             <div>
               <label style={{ fontWeight: 600 }}>Upload New File (optional)</label>
               <input
                 type="file"
                 accept={mediaType ? `${mediaType}/*` : "*/*"}
-                onChange={(e: any) => setFile(e.target.files[0])}
-                style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                onChange={handleFileChange}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  border: "1px solid #ddd",
+                  borderRadius: "6px",
+                }}
               />
             </div>
 
+            {/* Active Checkbox */}
             <div>
               <label style={{ fontWeight: 600 }}>
                 <input
@@ -135,9 +205,10 @@ export default function EditAdvertisementPage() {
               </label>
             </div>
 
-            <Button type="submit" disabled={saving}>
+            {/* Submit Button */}
+            <button type="submit" disabled={saving}>
               {saving ? "Updating..." : "Update Advertisement"}
-            </Button>
+            </button>
           </form>
         )}
       </ComponentCard>

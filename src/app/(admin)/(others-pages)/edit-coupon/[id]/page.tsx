@@ -1,12 +1,37 @@
 "use client";
 
-import React, { useEffect, useState, FormEvent, ChangeEvent } from "react";
+import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
+
+type Category = { id: number; name: string };
+type Subcategory = { id: number; name: string; category_id?: number };
+
+type Association = {
+  category_id?: number;
+  subcategory_id?: number;
+};
+
+type CouponFromApi = {
+  id: number;
+  name?: string;
+  type?: string;
+  amount?: number | string;
+  expiry_date?: string;
+  total_coupons?: number | string;
+  min_order_value?: number | string;
+  is_active?: boolean;
+  associations?: Association[];
+};
+
+type AlertType = {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+};
 
 export default function EditCouponPage() {
   const router = useRouter();
@@ -15,7 +40,7 @@ export default function EditCouponPage() {
   const apiKey = "ecommerceapp";
 
   const BASE_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin";
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -29,85 +54,142 @@ export default function EditCouponPage() {
     is_active: true,
   });
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
 
+  // ✅ Fetch categories and subcategories
   useEffect(() => {
     const fetchOptions = async () => {
       try {
         const [catRes, subRes] = await Promise.all([
-          fetch(`${BASE_URL}/category`, { headers: { Authorization: `Bearer ${token}`, apiKey } }),
-          fetch(`${BASE_URL}/subcategory`, { headers: { Authorization: `Bearer ${token}`, apiKey } }),
+          fetch(`${BASE_URL}/category`, {
+            headers: { Authorization: `Bearer ${token}`, apiKey },
+          }),
+          fetch(`${BASE_URL}/subcategory`, {
+            headers: { Authorization: `Bearer ${token}`, apiKey },
+          }),
         ]);
 
-        const catData = await catRes.json();
-        const subData = await subRes.json();
-        if (catData.success) setCategories(catData.data);
-        if (subData.success) setSubcategories(subData.data);
+        const [catData, subData] = await Promise.all([
+          catRes.json(),
+          subRes.json(),
+        ]);
+
+        if (catData && Array.isArray(catData.data))
+          setCategories(catData.data as Category[]);
+        if (subData && Array.isArray(subData.data))
+          setSubcategories(subData.data as Subcategory[]);
       } catch {
-        setAlert({ variant: "error", title: "Error", message: "Failed to load categories." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: "Failed to load categories.",
+        });
       }
     };
-    fetchOptions();
-  }, []);
 
+    if (token) fetchOptions();
+  }, [token]);
+
+  // ✅ Fetch coupon details
   useEffect(() => {
     const fetchCoupon = async () => {
       try {
+        setLoading(true);
         const res = await fetch(`${BASE_URL}/coupon/${id}`, {
           headers: { Authorization: `Bearer ${token}`, apiKey },
         });
         const data = await res.json();
 
-        if (data.success && data.coupon) {
-          const c = data.coupon;
+        if (data && data.success && (data.coupon || data.data)) {
+          const c: CouponFromApi = data.coupon ?? data.data;
+
           setForm({
-            name: c.name || "",
-            type: c.type || "percentage",
-            amount: c.amount || "",
-            expiry_date: c.expiry_date ? c.expiry_date.split("T")[0] : "",
-            total_coupons: c.total_coupons || "",
-            min_order_value: c.min_order_value || "",
-            is_active: c.is_active || false,
+            name: String(c.name ?? ""),
+            type: String(c.type ?? "percentage"),
+            amount: String(c.amount ?? ""),
+            expiry_date: c.expiry_date
+              ? String(c.expiry_date).split("T")[0]
+              : "",
+            total_coupons: String(c.total_coupons ?? ""),
+            min_order_value: String(c.min_order_value ?? ""),
+            is_active: Boolean(c.is_active ?? false),
           });
 
-          const assocCat = (c.associations || []).find((a: any) => a.category_id);
-          const assocSub = (c.associations || []).find((a: any) => a.subcategory_id);
-          if (assocCat) setSelectedCategory(String(assocCat.category_id));
-          if (assocSub) setSelectedSubcategory(String(assocSub.subcategory_id));
+          const associations = Array.isArray(c.associations)
+            ? c.associations
+            : [];
+          const assocCat = associations.find(
+            (a) => a.category_id !== undefined && a.category_id !== null
+          );
+          const assocSub = associations.find(
+            (a) => a.subcategory_id !== undefined && a.subcategory_id !== null
+          );
+
+          if (assocCat && assocCat.category_id != null)
+            setSelectedCategory(String(assocCat.category_id));
+          if (assocSub && assocSub.subcategory_id != null)
+            setSelectedSubcategory(String(assocSub.subcategory_id));
         } else {
-          setAlert({ variant: "error", title: "Error", message: "Failed to load coupon." });
+          setAlert({
+            variant: "error",
+            title: "Error",
+            message: "Failed to load coupon.",
+          });
         }
       } catch {
-        setAlert({ variant: "error", title: "Error", message: "Network error loading coupon." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: "Network error loading coupon.",
+        });
       } finally {
         setLoading(false);
       }
     };
-    if (id) fetchCoupon();
-  }, [id]);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    if (id && token) fetchCoupon();
+  }, [id, token]);
+
+  // ✅ Type-safe input change handler
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, type } = e.target;
+    const value =
+      type === "checkbox"
+        ? (e.target as HTMLInputElement).checked
+        : e.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
+  // ✅ Form submit handler
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setAlert(null);
 
     const payload = {
-      ...form,
+      name: form.name,
+      type: form.type,
       amount: parseFloat(form.amount || "0"),
-      total_coupons: parseInt(form.total_coupons || "0"),
+      expiry_date: form.expiry_date,
+      total_coupons: parseInt(form.total_coupons || "0", 10),
       min_order_value: parseFloat(form.min_order_value || "0"),
-      associations: [],
+      is_active: Boolean(form.is_active),
+      associations: [] as Association[],
     };
 
-    if (selectedCategory) payload.associations.push({ category_id: Number(selectedCategory) });
-    if (selectedSubcategory) payload.associations.push({ subcategory_id: Number(selectedSubcategory) });
+    if (selectedCategory)
+      payload.associations.push({ category_id: Number(selectedCategory) });
+    if (selectedSubcategory)
+      payload.associations.push({ subcategory_id: Number(selectedSubcategory) });
 
     try {
       const res = await fetch(`${BASE_URL}/coupon/${id}`, {
@@ -121,14 +203,26 @@ export default function EditCouponPage() {
       });
 
       const data = await res.json();
-      if (data.success) {
-        setAlert({ variant: "success", title: "Updated", message: "Coupon updated successfully!" });
+      if (data && data.success) {
+        setAlert({
+          variant: "success",
+          title: "Updated",
+          message: "Coupon updated successfully!",
+        });
         setTimeout(() => router.push("/coupons"), 1000);
       } else {
-        setAlert({ variant: "error", title: "Error", message: data.message || "Failed to update coupon." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: data?.message || "Failed to update coupon.",
+        });
       }
     } catch {
-      setAlert({ variant: "error", title: "Network Error", message: "Unable to update coupon." });
+      setAlert({
+        variant: "error",
+        title: "Network Error",
+        message: "Unable to update coupon.",
+      });
     } finally {
       setSaving(false);
     }
@@ -143,9 +237,18 @@ export default function EditCouponPage() {
         {loading ? (
           <p style={{ textAlign: "center", padding: "10px" }}>Loading...</p>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "grid", gap: "16px" }}
+          >
             {/* Row 1 */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
               <div>
                 <label style={{ fontWeight: 600 }}>Name</label>
                 <input
@@ -154,16 +257,27 @@ export default function EditCouponPage() {
                   value={form.name}
                   onChange={handleChange}
                   required
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 />
               </div>
+
               <div>
                 <label style={{ fontWeight: 600 }}>Type</label>
                 <select
                   name="type"
                   value={form.type}
                   onChange={handleChange}
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 >
                   <option value="percentage">Percentage</option>
                   <option value="fixed">Fixed</option>
@@ -172,7 +286,13 @@ export default function EditCouponPage() {
             </div>
 
             {/* Row 2 */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: "16px",
+              }}
+            >
               <div>
                 <label style={{ fontWeight: 600 }}>Amount</label>
                 <input
@@ -181,9 +301,15 @@ export default function EditCouponPage() {
                   value={form.amount}
                   onChange={handleChange}
                   required
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 />
               </div>
+
               <div>
                 <label style={{ fontWeight: 600 }}>Expiry Date</label>
                 <input
@@ -192,9 +318,15 @@ export default function EditCouponPage() {
                   value={form.expiry_date}
                   onChange={handleChange}
                   required
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 />
               </div>
+
               <div>
                 <label style={{ fontWeight: 600 }}>Total Coupons</label>
                 <input
@@ -203,13 +335,24 @@ export default function EditCouponPage() {
                   value={form.total_coupons}
                   onChange={handleChange}
                   required
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 />
               </div>
             </div>
 
             {/* Row 3 */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: "16px",
+              }}
+            >
               <div>
                 <label style={{ fontWeight: 600 }}>Min Order Value</label>
                 <input
@@ -218,15 +361,26 @@ export default function EditCouponPage() {
                   value={form.min_order_value}
                   onChange={handleChange}
                   required
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 />
               </div>
+
               <div>
                 <label style={{ fontWeight: 600 }}>Category</label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 >
                   <option value="">Select Category</option>
                   {categories.map((c) => (
@@ -236,16 +390,26 @@ export default function EditCouponPage() {
                   ))}
                 </select>
               </div>
+
               <div>
                 <label style={{ fontWeight: 600 }}>Subcategory</label>
                 <select
                   value={selectedSubcategory}
                   onChange={(e) => setSelectedSubcategory(e.target.value)}
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
                 >
                   <option value="">Select Subcategory</option>
                   {subcategories
-                    .filter((s) => !selectedCategory || String(s.category_id) === selectedCategory)
+                    .filter(
+                      (s) =>
+                        !selectedCategory ||
+                        String(s.category_id) === selectedCategory
+                    )
                     .map((s) => (
                       <option key={s.id} value={String(s.id)}>
                         {s.name}
@@ -269,9 +433,9 @@ export default function EditCouponPage() {
               </label>
             </div>
 
-            <Button type="submit" disabled={saving}>
+            <button type="submit" disabled={saving}>
               {saving ? "Updating..." : "Update Coupon"}
-            </Button>
+            </button>
           </form>
         )}
       </ComponentCard>

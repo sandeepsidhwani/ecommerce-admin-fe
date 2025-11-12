@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
@@ -18,71 +18,97 @@ type Subcategory = {
   image_url?: string;
 };
 
+type AlertType = {
+  variant: "success" | "error" | "info" | "warning";
+  title: string;
+  message: string;
+};
+
+type ApiResponse = {
+  data?: Subcategory[];
+  results?: Subcategory[];
+  total?: number;
+  meta?: { total?: number };
+  pagination?: { total?: number };
+  success?: boolean;
+  message?: string;
+};
+
 export default function SubcategoriesPage() {
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
 
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [alert, setAlert] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState<AlertType | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const itemsPerPage = 20;
-  const headers = { Authorization: `Bearer ${token}`, apiKey };
 
-  const extractTotalFromResponse = (resp: any): number | null => {
+  // ✅ Use useMemo to prevent re-creation of headers object
+  const headers = useMemo(
+    () => ({
+      Authorization: `Bearer ${token}`,
+      apiKey,
+    }),
+    [token, apiKey]
+  );
+
+  const extractTotalFromResponse = (resp: ApiResponse): number | null => {
     if (!resp) return null;
     if (typeof resp.total === "number") return resp.total;
-    if (resp.meta && typeof resp.meta.total === "number") return resp.meta.total;
-    if (resp.pagination && typeof resp.pagination.total === "number")
-      return resp.pagination.total;
+    if (resp.meta?.total) return resp.meta.total;
+    if (resp.pagination?.total) return resp.pagination.total;
     return null;
   };
 
-  const fetchSubcategories = async (page = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("limit", String(itemsPerPage));
+  const fetchSubcategories = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        params.set("limit", String(itemsPerPage));
 
-      const res = await fetch(
-        `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory?${params.toString()}`,
-        { headers }
-      );
-      const data = await res.json();
+        const res = await fetch(
+          `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory?${params.toString()}`,
+          { headers }
+        );
+        const data: ApiResponse = await res.json();
 
-      const possibleArray =
-        (data && Array.isArray(data.data) && data.data) ||
-        (data && Array.isArray(data.results) && data.results) ||
-        [];
+        const possibleArray =
+          (Array.isArray(data.data) && data.data) ||
+          (Array.isArray(data.results) && data.results) ||
+          [];
 
-      setSubcategories(possibleArray);
+        setSubcategories(possibleArray);
 
-      const extractedTotal = extractTotalFromResponse(data);
-      if (extractedTotal !== null) {
-        setTotalCount(extractedTotal);
-      } else {
-        if (totalCount === null) setTotalCount(130);
+        const extractedTotal = extractTotalFromResponse(data);
+        if (extractedTotal !== null) {
+          setTotalCount(extractedTotal);
+        } else if (totalCount === null) {
+          setTotalCount(130);
+        }
+
+        setCurrentPage(page);
+      } catch (err) {
+        console.error("fetchSubcategories error:", err);
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: "Failed to load subcategories for page " + page,
+        });
+      } finally {
+        setLoading(false);
       }
-
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("fetchSubcategories error:", err);
-      setAlert({
-        variant: "error",
-        title: "Error",
-        message: "Failed to load subcategories for page " + page,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [headers, itemsPerPage, totalCount]
+  );
 
   useEffect(() => {
     fetchSubcategories(1);
-  }, []);
+  }, [fetchSubcategories]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this subcategory?")) return;
@@ -94,7 +120,7 @@ export default function SubcategoriesPage() {
           headers,
         }
       );
-      const data = await res.json();
+      const data: ApiResponse = await res.json();
       if (data.success) {
         setAlert({
           variant: "success",
@@ -107,11 +133,19 @@ export default function SubcategoriesPage() {
         setTotalCount(computedTotal);
         await fetchSubcategories(nextPage);
       } else {
-        setAlert({ variant: "error", title: "Error", message: "Delete failed." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: data.message || "Delete failed.",
+        });
       }
     } catch (err) {
       console.error(err);
-      setAlert({ variant: "error", title: "Error", message: "Request failed." });
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Request failed.",
+      });
     }
   };
 
@@ -124,15 +158,16 @@ export default function SubcategoriesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const buildPageButtons = (total: number, current: number, maxButtons = 10) => {
+  const buildPageButtons = (
+    total: number,
+    current: number,
+    maxButtons = 10
+  ): (number | string)[] => {
     if (total <= maxButtons) {
       return Array.from({ length: total }, (_, i) => i + 1);
     }
 
     const pages: (number | string)[] = [];
-    const left = 1;
-    const right = total;
-
     const siblingCount = Math.floor((maxButtons - 3) / 2);
     let start = Math.max(current - siblingCount, 2);
     let end = Math.min(current + siblingCount, total - 1);
@@ -146,11 +181,11 @@ export default function SubcategoriesPage() {
       end = total - 1;
     }
 
-    pages.push(left);
+    pages.push(1);
     if (start > 2) pages.push("...");
     for (let p = start; p <= end; p++) pages.push(p);
     if (end < total - 1) pages.push("...");
-    pages.push(right);
+    pages.push(total);
 
     return pages;
   };
@@ -220,14 +255,7 @@ export default function SubcategoriesPage() {
               <tbody>
                 {subcategories.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={5}
-                      style={{
-                        textAlign: "center",
-                        padding: "15px",
-                        color: "#777",
-                      }}
-                    >
+                    <td colSpan={5} style={{ textAlign: "center", padding: "15px", color: "#777" }}>
                       No subcategories found.
                     </td>
                   </tr>
@@ -246,10 +274,7 @@ export default function SubcategoriesPage() {
                         <td style={{ padding: "10px", fontWeight: 500 }}>{sub.name}</td>
                         <td style={{ padding: "10px" }}>{sub.category_id}</td>
                         <td style={{ padding: "10px" }}>
-                          <Badge
-                            color={sub.is_active ? "success" : "error"}
-                            variant="solid"
-                          >
+                          <Badge color={sub.is_active ? "success" : "error"} variant="solid">
                             {sub.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </td>
@@ -327,8 +352,8 @@ export default function SubcategoriesPage() {
                   ) : (
                     <Button
                       key={p}
-                      variant={currentPage === p ? "solid" : "outline"}
-                      onClick={() => handlePageChange(p as number)}
+                      variant={currentPage === p ? "primary" : "outline"}
+                      onClick={() => handlePageChange(p)}
                       style={{
                         minWidth: "36px",
                         borderRadius: "6px",

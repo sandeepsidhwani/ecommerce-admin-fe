@@ -1,16 +1,22 @@
 "use client";
 
-import React, { useEffect, useState, FormEvent } from "react";
+import React, { useEffect, useState, FormEvent, ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { parseCookies } from "nookies";
+import Image from "next/image"; // ✅ for optimized images
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
+
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
 
 export default function EditSliderPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
 
@@ -18,14 +24,14 @@ export default function EditSliderPage() {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isActive, setIsActive] = useState(true);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const BASE_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/slider";
   const MEDIA_URL = "https://ecommerce.sidhwanitechnologies.com/uploads/";
 
-  // Fetch existing slider
+  // ✅ Fetch existing slider
   useEffect(() => {
     const fetchSlider = async () => {
       try {
@@ -57,8 +63,8 @@ export default function EditSliderPage() {
       }
     };
 
-    if (id) fetchSlider();
-  }, [id]);
+    if (id && token) fetchSlider();
+  }, [id, token]); // ✅ added token to dependencies
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -103,6 +109,12 @@ export default function EditSliderPage() {
     }
   };
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+    }
+  };
+
   return (
     <div>
       <PageBreadcrumb pageTitle="Edit Slider" />
@@ -113,6 +125,7 @@ export default function EditSliderPage() {
           <p style={{ textAlign: "center", padding: "10px" }}>Loading...</p>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
+            {/* Media Type */}
             <div>
               <label style={{ fontWeight: 600, display: "block", marginBottom: "6px" }}>
                 Media Type
@@ -133,17 +146,19 @@ export default function EditSliderPage() {
               </select>
             </div>
 
+            {/* Current File */}
             <div>
               <label style={{ fontWeight: 600, display: "block", marginBottom: "6px" }}>
                 Current File
               </label>
               {currentFile ? (
                 mediaType === "image" ? (
-                  <img
+                  <Image
                     src={currentFile}
                     alt="current slider"
+                    width={120}
+                    height={80}
                     style={{
-                      width: "120px",
                       borderRadius: "6px",
                       border: "1px solid #ddd",
                       padding: "4px",
@@ -166,6 +181,7 @@ export default function EditSliderPage() {
               )}
             </div>
 
+            {/* Replace File */}
             <div>
               <label style={{ fontWeight: 600, display: "block", marginBottom: "6px" }}>
                 Replace File (optional)
@@ -173,7 +189,7 @@ export default function EditSliderPage() {
               <input
                 type="file"
                 accept={mediaType ? `${mediaType}/*` : "*/*"}
-                onChange={(e: any) => setFile(e.target.files[0])}
+                onChange={handleFileChange}
                 style={{
                   width: "100%",
                   padding: "8px",
@@ -183,6 +199,7 @@ export default function EditSliderPage() {
               />
             </div>
 
+            {/* Active */}
             <div>
               <label style={{ fontWeight: 600 }}>
                 <input
@@ -195,9 +212,10 @@ export default function EditSliderPage() {
               </label>
             </div>
 
-            <Button type="submit" disabled={saving}>
+            {/* Submit */}
+            <button type="submit" disabled={saving}>
               {saving ? "Updating..." : "Update Slider"}
-            </Button>
+            </button>
           </form>
         )}
       </ComponentCard>

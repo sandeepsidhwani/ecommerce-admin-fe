@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ChangeEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { parseCookies } from "nookies";
 import Alert from "@/components/ui/alert/Alert";
@@ -9,23 +9,44 @@ import Badge from "@/components/ui/badge/Badge";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 
+type Gateway = {
+  id: number;
+  name: string;
+  client_id?: string | null;
+  client_secret?: string | null;
+  is_active: boolean;
+  [key: string]: unknown;
+};
+
+type AlertType = {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+};
+
 export default function EditPaymentGatewayPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id } = useParams() as { id?: string };
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
 
-  const [gateway, setGateway] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [alert, setAlert] = useState<any>(null);
+  const [gateway, setGateway] = useState<Gateway | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [alert, setAlert] = useState<AlertType | null>(null);
 
-  const GATEWAY_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/payment-gateways";
+  const GATEWAY_URL =
+    "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/payment-gateways";
 
   // Fetch specific gateway by ID
   useEffect(() => {
-    if (!id) return;
+    if (!id || !token) {
+      setLoading(false);
+      return;
+    }
+
     const fetchGateway = async () => {
+      setLoading(true);
       try {
         const res = await fetch(GATEWAY_URL, {
           method: "GET",
@@ -34,16 +55,19 @@ export default function EditPaymentGatewayPage() {
             apiKey,
           },
         });
+
         const data = await res.json();
 
-        if (res.ok && data.data) {
-          const found = data.data.find((g: any) => g.id === parseInt(id));
-          setGateway(found || null);
+        if (res.ok && Array.isArray(data.data)) {
+          const found = data.data.find(
+            (g: Record<string, unknown>) => Number(g.id) === Number(id)
+          ) as Gateway | undefined;
+          setGateway(found ?? null);
         } else {
           setAlert({
             variant: "error",
             title: "Error",
-            message: data.message || "Failed to fetch gateway.",
+            message: data?.message ?? "Failed to fetch gateway.",
           });
         }
       } catch {
@@ -56,20 +80,22 @@ export default function EditPaymentGatewayPage() {
         setLoading(false);
       }
     };
+
     fetchGateway();
-  }, [id]);
+  }, [id, token]); // ✅ token added to deps
 
   // Handle toggle of active status
-  const handleToggle = (e: any) => {
-    setGateway((prev: any) => ({
-      ...prev,
-      is_active: e.target.checked,
-    }));
+  const handleToggle = (e: ChangeEvent<HTMLInputElement>) => {
+    setGateway((prev) =>
+      prev ? { ...prev, is_active: e.target.checked } : prev
+    );
   };
 
   // Submit updated gateway
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!gateway || !id || !token) return;
+
     setSaving(true);
     setAlert(null);
 
@@ -97,7 +123,7 @@ export default function EditPaymentGatewayPage() {
         setAlert({
           variant: "error",
           title: "Error",
-          message: data.message || "Failed to update gateway.",
+          message: data?.message ?? "Failed to update gateway.",
         });
       }
     } catch {
@@ -111,14 +137,22 @@ export default function EditPaymentGatewayPage() {
     }
   };
 
-  if (loading) <p style={{ textAlign: "center" }}>Loading...</p>;
+  if (loading) {
+    return <p style={{ textAlign: "center" }}>Loading...</p>;
+  }
 
-  if (!gateway)
+  if (!gateway) {
     return (
       <div style={{ padding: "20px" }}>
-        <Alert variant="warning" title="Not Found" message="No gateway found." showLink={false} />
+        <Alert
+          variant="warning"
+          title="Not Found"
+          message="No gateway found."
+          showLink={false}
+        />
       </div>
     );
+  }
 
   return (
     <div>
@@ -147,7 +181,7 @@ export default function EditPaymentGatewayPage() {
             <label style={{ fontWeight: 600 }}>Client ID</label>
             <input
               type="text"
-              value={gateway.client_id || ""}
+              value={String(gateway.client_id ?? "")}
               readOnly
               style={{
                 width: "100%",
@@ -164,7 +198,7 @@ export default function EditPaymentGatewayPage() {
             <label style={{ fontWeight: 600 }}>Client Secret</label>
             <input
               type="text"
-              value={gateway.client_secret || ""}
+              value={String(gateway.client_secret ?? "")}
               readOnly
               style={{
                 width: "100%",
@@ -177,10 +211,17 @@ export default function EditPaymentGatewayPage() {
           </div>
 
           {/* Active Switch */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              marginBottom: "20px",
+            }}
+          >
             <input
               type="checkbox"
-              checked={gateway.is_active}
+              checked={Boolean(gateway.is_active)}
               onChange={handleToggle}
               id="isActive"
             />

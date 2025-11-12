@@ -1,13 +1,52 @@
 "use client";
 
-import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import React, {
+  useEffect,
+  useState,
+  ChangeEvent,
+  FormEvent,
+} from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
+// ---------- Types ----------
+type Category = {
+  id: number;
+  name: string;
+};
+
+type Subcategory = {
+  id: number;
+  name: string;
+};
+
+type SubcategoryType = {
+  id: number;
+  name: string;
+};
+
+type Product = {
+  id: number;
+  name: string;
+  category_id: number;
+  subcategory_id: number;
+  subcategory_type_id?: number | null;
+  price: string;
+  image_url: string | null;
+  product_medias?: { image_url?: string }[];
+};
+
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
+
+// ---------- Component ----------
 export default function AddDealPage() {
   const router = useRouter();
   const apiKey = "ecommerceapp";
@@ -20,12 +59,12 @@ export default function AddDealPage() {
     subcategory_type_id: "",
   });
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
-  const [types, setTypes] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [types, setTypes] = useState<SubcategoryType[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,15 +103,17 @@ export default function AddDealPage() {
         setLoading(false);
       }
     };
-    fetchOptions();
+
+    if (token) fetchOptions();
   }, [token]);
 
+  // --- Handle input change ---
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // --- Fetch products based on filters ---
+  // --- Fetch products when filters change ---
   useEffect(() => {
     const { category_id, subcategory_id, subcategory_type_id } = form;
     if (!category_id || !subcategory_id) {
@@ -92,15 +133,16 @@ export default function AddDealPage() {
         const data = await res.json();
 
         if (data.success && Array.isArray(data.data)) {
-          const filtered = data.data.filter((p: any) => {
-            const matchCat = p.category_id == category_id;
-            const matchSub = p.subcategory_id == subcategory_id;
+          const filtered = data.data.filter((p: Product) => {
+            const matchCat = p.category_id == Number(category_id);
+            const matchSub = p.subcategory_id == Number(subcategory_id);
             const matchType =
-              !subcategory_type_id || p.subcategory_type_id == subcategory_type_id;
+              !subcategory_type_id ||
+              p.subcategory_type_id == Number(subcategory_type_id);
             return matchCat && matchSub && matchType;
           });
 
-          const withImageAndPrice = filtered.map((p: any) => ({
+          const withImageAndPrice = filtered.map((p: Product) => ({
             ...p,
             image_url: p.product_medias?.[0]?.image_url || null,
             price: p.price || "0.00",
@@ -121,8 +163,8 @@ export default function AddDealPage() {
       }
     };
 
-    fetchProducts();
-  }, [form.category_id, form.subcategory_id, form.subcategory_type_id, token]);
+    if (token) fetchProducts();
+  }, [form, token]); // ✅ includes full form dependency
 
   // --- Handle product select ---
   const handleSelectProduct = (id: number) => {
@@ -209,9 +251,11 @@ export default function AddDealPage() {
     }
   };
 
+  // ---------- JSX ----------
   return (
     <div>
       <PageBreadcrumb pageTitle="Add Deal" />
+
       {alert && (
         <Alert
           variant={alert.variant}
@@ -233,6 +277,7 @@ export default function AddDealPage() {
               gap: "16px",
             }}
           >
+            {/* Deal name */}
             <div>
               <label>
                 Deal Name <span style={{ color: "red" }}>*</span>
@@ -250,6 +295,7 @@ export default function AddDealPage() {
               />
             </div>
 
+            {/* Category */}
             <div>
               <label>
                 Category <span style={{ color: "red" }}>*</span>
@@ -274,6 +320,7 @@ export default function AddDealPage() {
               </select>
             </div>
 
+            {/* Subcategory */}
             <div>
               <label>
                 Subcategory <span style={{ color: "red" }}>*</span>
@@ -298,6 +345,7 @@ export default function AddDealPage() {
               </select>
             </div>
 
+            {/* Type */}
             <div>
               <label>Subcategory Type (optional)</label>
               <select
@@ -320,6 +368,7 @@ export default function AddDealPage() {
               </select>
             </div>
 
+            {/* Product Table */}
             <div style={{ gridColumn: "1 / -1", marginTop: 16 }}>
               <h4>Products</h4>
               {products.length === 0 ? (
@@ -343,59 +392,17 @@ export default function AddDealPage() {
                         borderBottom: "2px solid #ddd",
                       }}
                     >
-                      <th
-                        style={{
-                          padding: "10px",
-                          textAlign: "center",
-                          fontWeight: "600",
-                          borderRight: "1px solid #ddd",
-                        }}
-                      >
+                      <th style={{ padding: "10px" }}>
                         <input
                           type="checkbox"
                           onChange={handleSelectAll}
                           checked={allSelected}
                         />
                       </th>
-                        <th
-                        style={{
-                          padding: "10px",
-                          textAlign: "center",
-                          fontWeight: "600",
-                          borderRight: "1px solid #ddd",
-                        }}
-                      >
-                        Id
-                      </th>
-                      <th
-                        style={{
-                          padding: "10px",
-                          textAlign: "center",
-                          fontWeight: "600",
-                          borderRight: "1px solid #ddd",
-                        }}
-                      >
-                        Image
-                      </th>
-                      <th
-                        style={{
-                          padding: "10px",
-                          textAlign: "center",
-                          fontWeight: "600",
-                          borderRight: "1px solid #ddd",
-                        }}
-                      >
-                        Name
-                      </th>
-                      <th
-                        style={{
-                          padding: "10px",
-                          textAlign: "center",
-                          fontWeight: "600",
-                        }}
-                      >
-                        Price
-                      </th>
+                      <th style={{ padding: "10px" }}>ID</th>
+                      <th style={{ padding: "10px" }}>Image</th>
+                      <th style={{ padding: "10px" }}>Name</th>
+                      <th style={{ padding: "10px" }}>Price</th>
                     </tr>
                   </thead>
 
@@ -408,13 +415,7 @@ export default function AddDealPage() {
                             index % 2 === 0 ? "#fff" : "#fafafa",
                         }}
                       >
-                        <td
-                          style={{
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                            padding: "10px",
-                          }}
-                        >
+                        <td style={{ textAlign: "center" }}>
                           <input
                             type="checkbox"
                             checked={selectedProducts.includes(p.id)}
@@ -422,36 +423,19 @@ export default function AddDealPage() {
                           />
                         </td>
 
-                         <td
-                          style={{
-                            padding: "10px",
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                            fontWeight: "500",
-                          }}
-                        >
-                          {p.id}
-                        </td>
+                        <td style={{ textAlign: "center" }}>{p.id}</td>
 
-                        <td
-                          style={{
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                            padding: "10px",
-                          }}
-                        >
+                        <td style={{ textAlign: "center" }}>
                           {p.image_url ? (
-                            <img
+                            <Image
                               src={p.image_url}
                               alt={p.name}
+                              width={50}
+                              height={50}
                               style={{
-                                width: 50,
-                                height: 50,
                                 objectFit: "cover",
-                                borderRadius: "6px",
+                                borderRadius: 6,
                                 border: "1px solid #ddd",
-                                display: "block",
-                                margin: "0 auto",
                               }}
                             />
                           ) : (
@@ -459,28 +443,8 @@ export default function AddDealPage() {
                           )}
                         </td>
 
-                        <td
-                          style={{
-                            padding: "10px",
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                            fontWeight: "500",
-                          }}
-                        >
-                          {p.name}
-                        </td>
-
-                        <td
-                          style={{
-                            padding: "10px",
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                            color: "#333",
-                            fontWeight: "500",
-                          }}
-                        >
-                          ₹{p.price}
-                        </td>
+                        <td style={{ textAlign: "center" }}>{p.name}</td>
+                        <td style={{ textAlign: "center" }}>₹{p.price}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -489,9 +453,9 @@ export default function AddDealPage() {
             </div>
 
             <div style={{ gridColumn: "1 / -1", marginTop: 16 }}>
-              <Button type="submit" disabled={submitting}>
+              <button type="submit" disabled={submitting}>
                 {submitting ? "Submitting..." : "Create Deal"}
-              </Button>
+              </button>
             </div>
           </form>
         )}

@@ -4,12 +4,17 @@ import React, { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
 
 type Category = { id: number; name: string };
 type Subcategory = { id: number; name: string };
+
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
 
 export default function AddSubcategoryTypePage() {
   const router = useRouter();
@@ -25,11 +30,10 @@ export default function AddSubcategoryTypePage() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch categories & subcategories
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -66,14 +70,21 @@ export default function AddSubcategoryTypePage() {
       }
     };
 
-    fetchOptions();
-  }, []);
+    if (token) fetchOptions();
+  }, [token]);
 
+  // ✅ Fixed handleChange (removed unused variable + correct checkbox handling)
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type } = e.target;
+
+    const newValue =
+      type === "checkbox" && "checked" in e.target
+        ? (e.target as HTMLInputElement).checked
+        : value;
+
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: newValue,
     }));
   };
 
@@ -238,9 +249,22 @@ export default function AddSubcategoryTypePage() {
 
             {/* Submit Button */}
             <div style={{ gridColumn: "1 / -1", marginTop: "16px" }}>
-              <Button type="submit" disabled={submitting}>
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{
+                  backgroundColor: "#4f46e5",
+                  color: "#fff",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  opacity: submitting ? 0.7 : 1,
+                }}
+              >
                 {submitting ? "Submitting..." : "Add Subcategory Type"}
-              </Button>
+              </button>
             </div>
           </form>
         )}

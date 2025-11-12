@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import React, {
+  useEffect,
+  useState,
+  ChangeEvent,
+  FormEvent,
+  useCallback,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -8,6 +14,19 @@ import Alert from "@/components/ui/alert/Alert";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import { parseCookies } from "nookies";
+import Image from "next/image";
+
+type Category = {
+  id: number | string;
+  name: string;
+  _id?: string;
+};
+
+type Subcategory = {
+  id: number | string;
+  name: string;
+  _id?: string;
+};
 
 type Product = {
   id: number;
@@ -21,8 +40,14 @@ type Product = {
   images?: string[];
 };
 
+type AlertType = {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+};
+
 export default function EditProductPage() {
-  const { id } = useParams();
+  const { id } = useParams() as { id?: string };
   const router = useRouter();
   const apiKey = "ecommerceapp";
   const { adminToken: token } = parseCookies();
@@ -38,14 +63,16 @@ export default function EditProductPage() {
     is_active: true,
   });
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newImages, setNewImages] = useState<File[]>([]);
 
-  const fetchProduct = async () => {
+  // ✅ Fetch Product Details
+  const fetchProduct = useCallback(async () => {
+    if (!id || !token) return;
     try {
       const res = await fetch(
         `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/product/${id}`,
@@ -53,6 +80,7 @@ export default function EditProductPage() {
           headers: { Authorization: `Bearer ${token}`, apiKey },
         }
       );
+
       const data = await res.json();
       if (data.success && data.data) {
         const p = data.data;
@@ -68,14 +96,24 @@ export default function EditProductPage() {
           images: p.images ?? [],
         });
       } else {
-        throw new Error("Product not found.");
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: "Product not found.",
+        });
       }
-    } catch (err) {
-      setAlert({ variant: "error", title: "Error", message: "Failed to load product." });
+    } catch {
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Failed to load product.",
+      });
     }
-  };
+  }, [id, token]);
 
-  const fetchOptions = async () => {
+  // ✅ Fetch Categories & Subcategories
+  const fetchOptions = useCallback(async () => {
+    if (!token) return;
     try {
       const [catRes, subRes] = await Promise.all([
         fetch("https://ecommerce.sidhwanitechnologies.com/api/v1/admin/category", {
@@ -85,32 +123,45 @@ export default function EditProductPage() {
           headers: { Authorization: `Bearer ${token}`, apiKey },
         }),
       ]);
+
       const catData = await catRes.json();
       const subData = await subRes.json();
+
       if (catData?.success) setCategories(catData.data || []);
       if (subData?.success) setSubcategories(subData.data || []);
     } catch {
-      setAlert({ variant: "error", title: "Error", message: "Failed to load dropdown data." });
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Failed to load dropdown data.",
+      });
     }
-  };
+  }, [token]);
 
+  // ✅ Run both fetchers safely
   useEffect(() => {
     Promise.all([fetchProduct(), fetchOptions()]).finally(() => setLoading(false));
-  }, [id]);
+  }, [fetchProduct, fetchOptions]);
 
+  // ✅ Handlers
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      // checkbox => boolean; numeric fields kept as strings from inputs but we convert on submit
-      [name]: type === "checkbox" ? checked : value,
-    }) as unknown as Product);
-  };
+  e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+) => {
+  const { name, value, type } = e.target;
+
+  // Determine checked value only if it's an input checkbox
+  const fieldValue =
+    type === "checkbox" && "checked" in e.target ? e.target.checked : value;
+
+  setForm((prev) => ({
+    ...prev,
+    [name]: fieldValue,
+  }));
+};
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setNewImages(Array.from(e.target.files || []));
+    const files = Array.from(e.target.files ?? []);
+    setNewImages(files);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -120,13 +171,12 @@ export default function EditProductPage() {
     try {
       const formData = new FormData();
 
-      // Append fields: ensure numbers are strings
-      formData.append("name", String(form.name));
-      formData.append("description", String(form.description));
+      formData.append("name", form.name);
+      formData.append("description", form.description);
       formData.append("price", String(form.price));
       formData.append("quantity", String(form.quantity));
-      formData.append("category_id", String(form.category_id));
-      formData.append("subcategory_id", String(form.subcategory_id));
+      formData.append("category_id", form.category_id);
+      formData.append("subcategory_id", form.subcategory_id);
       formData.append("is_active", form.is_active ? "1" : "0");
 
       newImages.forEach((file) => formData.append("images", file));
@@ -150,7 +200,7 @@ export default function EditProductPage() {
           title: "Success",
           message: "Product updated successfully!",
         });
-        setTimeout(() => router.push("/products"), 1000);
+        setTimeout(() => router.push("/admin/products"), 1000);
       } else {
         setAlert({
           variant: "error",
@@ -159,14 +209,22 @@ export default function EditProductPage() {
         });
       }
     } catch {
-      setAlert({ variant: "error", title: "Error", message: "Request failed." });
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Request failed.",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <p style={{ textAlign: "center" }}>Loading...</p>;
+  // ✅ Loading state
+  if (loading) {
+    return <p style={{ textAlign: "center" }}>Loading...</p>;
+  }
 
+  // ✅ Render form
   return (
     <div>
       <PageBreadcrumb pageTitle={`Edit Product #${id}`} />
@@ -199,6 +257,7 @@ export default function EditProductPage() {
             style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}
           />
 
+          {/* Price and Quantity */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ fontWeight: 600 }}>Price</label>
@@ -207,7 +266,12 @@ export default function EditProductPage() {
                 name="price"
                 value={String(form.price)}
                 onChange={handleChange}
-                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px", width: "100%" }}
+                style={{
+                  padding: "8px",
+                  border: "1px solid #ccc",
+                  borderRadius: "6px",
+                  width: "100%",
+                }}
               />
             </div>
 
@@ -218,11 +282,17 @@ export default function EditProductPage() {
                 name="quantity"
                 value={String(form.quantity)}
                 onChange={handleChange}
-                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px", width: "100%" }}
+                style={{
+                  padding: "8px",
+                  border: "1px solid #ccc",
+                  borderRadius: "6px",
+                  width: "100%",
+                }}
               />
             </div>
           </div>
 
+          {/* Category and Subcategory */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ fontWeight: 600 }}>Category</label>
@@ -230,11 +300,16 @@ export default function EditProductPage() {
                 name="category_id"
                 value={form.category_id}
                 onChange={handleChange}
-                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px", width: "100%" }}
+                style={{
+                  padding: "8px",
+                  border: "1px solid #ccc",
+                  borderRadius: "6px",
+                  width: "100%",
+                }}
               >
                 <option value="">Select Category</option>
                 {categories.map((cat) => (
-                  <option key={cat.id ?? cat._id} value={cat.id ?? cat._id}>
+                  <option key={cat.id ?? cat._id} value={String(cat.id ?? cat._id)}>
                     {cat.name}
                   </option>
                 ))}
@@ -247,11 +322,16 @@ export default function EditProductPage() {
                 name="subcategory_id"
                 value={form.subcategory_id}
                 onChange={handleChange}
-                style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px", width: "100%" }}
+                style={{
+                  padding: "8px",
+                  border: "1px solid #ccc",
+                  borderRadius: "6px",
+                  width: "100%",
+                }}
               >
                 <option value="">Select Subcategory</option>
                 {subcategories.map((sub) => (
-                  <option key={sub.id ?? sub._id} value={sub.id ?? sub._id}>
+                  <option key={sub.id ?? sub._id} value={String(sub.id ?? sub._id)}>
                     {sub.name}
                   </option>
                 ))}
@@ -259,6 +339,7 @@ export default function EditProductPage() {
             </div>
           </div>
 
+          {/* Images */}
           <label style={{ fontWeight: 600 }}>Upload New Images</label>
           <input type="file" multiple onChange={handleImageChange} />
 
@@ -267,19 +348,24 @@ export default function EditProductPage() {
               <p style={{ margin: "8px 0" }}>Existing Images:</p>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 {form.images.map((img, idx) => (
-                  <img
+                  <Image
                     key={idx}
-                    src={img as string}
+                    src={img}
                     alt="product"
                     width={80}
                     height={80}
-                    style={{ borderRadius: "8px", border: "1px solid #ddd", objectFit: "cover" }}
+                    style={{
+                      borderRadius: "8px",
+                      border: "1px solid #ddd",
+                      objectFit: "cover",
+                    }}
                   />
                 ))}
               </div>
             </div>
           )}
 
+          {/* Active Status */}
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
               type="checkbox"
@@ -296,16 +382,16 @@ export default function EditProductPage() {
             </Badge>
           </div>
 
+          {/* Buttons */}
           <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
-            <Button color="primary" variant="outline" type="submit" disabled={saving}>
+            <Button color="primary" variant="outline" disabled={saving}>
               {saving ? "Saving..." : "Update Product"}
             </Button>
 
             <Button
-              color="dark"
+              color="primary"
               variant="outline"
               onClick={() => router.push("/admin/products")}
-              type="button"
             >
               Cancel
             </Button>

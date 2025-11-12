@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
@@ -10,17 +10,41 @@ import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 import { Mail, CreditCard } from "lucide-react";
 
+// --- Type Definitions ---
+interface EmailSettings {
+  host: string;
+  port: string;
+  login: string;
+  password: string;
+  emailFrom: string;
+  smtpType: string;
+  is_active: boolean;
+}
+
+interface PaymentGateway {
+  id: number;
+  name: string;
+  client_id: string;
+  client_secret: string;
+  is_active: boolean;
+}
+
+interface AlertType {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
 
-  const EMAIL_URL =
-    "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/email-config";
-  const GATEWAY_URL =
-    "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/payment-gateways";
+  const EMAIL_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/email-config";
+  const GATEWAY_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/payment-gateways";
 
-  const [emailSettings, setEmailSettings] = useState<any>({
+  // --- State Management ---
+  const [emailSettings, setEmailSettings] = useState<EmailSettings>({
     host: "",
     port: "",
     login: "",
@@ -30,64 +54,79 @@ export default function SettingsPage() {
     is_active: true,
   });
 
-  const [paymentGateways, setPaymentGateways] = useState<any[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [paymentGateways, setPaymentGateways] = useState<PaymentGateway[]>([]);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"email" | "payment">("email");
 
-  // Fetch Settings
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        // --- Email Config ---
-        const emailRes = await fetch(EMAIL_URL, {
-          headers: { Authorization: `Bearer ${token}`, apiKey },
-        });
-        const emailData = await emailRes.json();
+  // ✅ Memoized Headers (fixes warning)
+  const headers = useMemo(
+    () => ({
+      Authorization: `Bearer ${token}`,
+      apiKey,
+    }),
+    [token]
+  );
 
-        if (emailRes.ok && emailData.data) {
-          setEmailSettings({
-            host: emailData.data.smtp_host || "",
-            port: emailData.data.smtp_port || "",
-            login: emailData.data.smtp_user || "",
-            password: emailData.data.smtp_password || "",
-            emailFrom: emailData.data.email || "",
-            smtpType: emailData.data.smtp_type || "TLS",
-            is_active: emailData.data.is_active ?? true,
-          });
-        }
+  // --- Fetch Settings ---
+  const fetchSettings = useCallback(async () => {
+    try {
+      // Fetch Email Config
+      const emailRes = await fetch(EMAIL_URL, { headers });
+      const emailData = await emailRes.json();
 
-        // --- Payment Gateways ---
-        const gatewayRes = await fetch(GATEWAY_URL, {
-          headers: { Authorization: `Bearer ${token}`, apiKey },
-        });
-        const gatewayData = await gatewayRes.json();
-
-        if (gatewayRes.ok && gatewayData.data) {
-          setPaymentGateways(gatewayData.data);
-        }
-      } catch {
-        setAlert({
-          variant: "error",
-          title: "Error",
-          message: "Failed to fetch settings.",
+      if (emailRes.ok && emailData.data) {
+        setEmailSettings({
+          host: emailData.data.smtp_host || "",
+          port: emailData.data.smtp_port || "",
+          login: emailData.data.smtp_user || "",
+          password: emailData.data.smtp_password || "",
+          emailFrom: emailData.data.email || "",
+          smtpType: emailData.data.smtp_type || "TLS",
+          is_active: emailData.data.is_active ?? true,
         });
       }
-    };
 
-    fetchSettings();
-  }, []);
+      // Fetch Payment Gateways
+      const gatewayRes = await fetch(GATEWAY_URL, { headers });
+      const gatewayData = await gatewayRes.json();
 
-  // Handle Input Change
-  const handleEmailChange = (e: any) => {
-    const { name, value, type, checked } = e.target;
-    setEmailSettings((prev: any) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+      if (gatewayRes.ok && Array.isArray(gatewayData.data)) {
+        setPaymentGateways(gatewayData.data);
+      }
+    } catch {
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Failed to fetch settings.",
+      });
+    }
+  }, [EMAIL_URL, GATEWAY_URL, headers]);
 
-  // Submit Email Config
+  useEffect(() => {
+    if (token) {
+      fetchSettings();
+    }
+  }, [token, fetchSettings]);
+
+  // --- Handle Input Change ---
+  const handleEmailChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+) => {
+  const { name, value, type } = e.target;
+
+  // Only access checked if it's a checkbox input
+  const fieldValue =
+    type === "checkbox" && "checked" in e.target ? e.target.checked : value;
+
+  setEmailSettings((prev) => ({
+    ...prev,
+    [name]: fieldValue,
+  }));
+};
+
+
+  // --- Submit Email Config ---
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -107,8 +146,7 @@ export default function SettingsPage() {
       const res = await fetch(EMAIL_URL, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
-          apiKey,
+          ...headers,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
@@ -139,13 +177,14 @@ export default function SettingsPage() {
     }
   };
 
+  // --- JSX Render ---
   return (
     <div>
       <PageBreadcrumb pageTitle="Settings" />
       {alert && <Alert {...alert} showLink={false} />}
 
       <ComponentCard title="System Settings">
-        {/* --- Bootstrap-style Tabs --- */}
+        {/* Tabs */}
         <div
           style={{
             display: "flex",
@@ -154,6 +193,7 @@ export default function SettingsPage() {
             gap: "30px",
           }}
         >
+          {/* Email Config Tab */}
           <div
             onClick={() => setActiveTab("email")}
             style={{
@@ -163,7 +203,9 @@ export default function SettingsPage() {
               padding: "10px 0",
               cursor: "pointer",
               borderBottom:
-                activeTab === "email" ? "3px solid #3b82f6" : "3px solid transparent",
+                activeTab === "email"
+                  ? "3px solid #3b82f6"
+                  : "3px solid transparent",
               color: activeTab === "email" ? "#3b82f6" : "#6b7280",
               fontWeight: activeTab === "email" ? 600 : 500,
             }}
@@ -172,6 +214,7 @@ export default function SettingsPage() {
             <span>Email Config</span>
           </div>
 
+          {/* Payment Gateway Tab */}
           <div
             onClick={() => setActiveTab("payment")}
             style={{
@@ -193,23 +236,25 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* --- Email Config --- */}
+        {/* Email Config Section */}
         {activeTab === "email" && (
           <form onSubmit={handleEmailSubmit} style={{ maxWidth: "700px" }}>
             <div style={{ display: "grid", gap: "15px" }}>
-              {[
-                { label: "Host", name: "host", type: "text" },
-                { label: "Port", name: "port", type: "number" },
-                { label: "Login", name: "login", type: "text" },
-                { label: "Password", name: "password", type: "password" },
-                { label: "Email From", name: "emailFrom", type: "email" },
-              ].map((f) => (
+              {(
+                [
+                  { label: "Host", name: "host", type: "text" },
+                  { label: "Port", name: "port", type: "number" },
+                  { label: "Login", name: "login", type: "text" },
+                  { label: "Password", name: "password", type: "password" },
+                  { label: "Email From", name: "emailFrom", type: "email" },
+                ] as const
+              ).map((f) => (
                 <div key={f.name}>
                   <label style={{ fontWeight: 600 }}>{f.label}</label>
                   <input
                     type={f.type}
                     name={f.name}
-                    value={emailSettings[f.name]}
+                    value={emailSettings[f.name]} // ✅ Type-safe access (no any)
                     onChange={handleEmailChange}
                     style={{
                       width: "100%",
@@ -262,7 +307,7 @@ export default function SettingsPage() {
           </form>
         )}
 
-        {/* --- Payment Gateways --- */}
+        {/* Payment Gateway Section */}
         {activeTab === "payment" && (
           <div>
             {paymentGateways.length === 0 ? (
@@ -334,9 +379,7 @@ export default function SettingsPage() {
 
                   <Button
                     color="info"
-                    onClick={() =>
-                      router.push(`/payment-gateway/${gateway.id}`)
-                    }
+                    onClick={() => router.push(`/payment-gateway/${gateway.id}`)}
                   >
                     Edit {gateway.name}
                   </Button>

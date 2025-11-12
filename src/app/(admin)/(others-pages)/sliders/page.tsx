@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { JSX, useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { parseCookies } from "nookies";
 import { Pencil, Trash2, Plus } from "lucide-react";
@@ -10,36 +11,84 @@ import Alert from "@/components/ui/alert/Alert";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 
-export default function SlidersPage() {
+type Slider = {
+  id: number;
+  media_type: "image" | "video" | string;
+  media_path: string;
+  is_active: boolean;
+  media_url?: string;
+};
+
+type SliderApiResponse = {
+  id: number;
+  media_type: string;
+  media_path: string;
+  is_active: boolean | number;
+};
+
+type SliderResponse = {
+  data?: SliderApiResponse[];
+  success?: boolean;
+  message?: string;
+};
+
+type AlertType = {
+  variant: "success" | "error" | "info" | "warning";
+  title: string;
+  message: string;
+};
+
+export default function SlidersPage(): JSX.Element {
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
   const BASE_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/slider";
   const MEDIA_URL = "https://ecommerce.sidhwanitechnologies.com/uploads/";
 
-  const [sliders, setSliders] = useState<any[]>([]);
-  const [alert, setAlert] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [sliders, setSliders] = useState<Slider[]>([]);
+  const [alert, setAlert] = useState<AlertType | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const fetchSliders = async () => {
+  // ✅ Strongly typed fetch logic
+  const fetchSliders = useCallback(async () => {
+    setLoading(true);
+    setAlert(null);
+
+    if (!token) {
+      setAlert({
+        variant: "error",
+        title: "Auth Error",
+        message: "No admin token found. Please login.",
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(BASE_URL, {
         headers: { Authorization: `Bearer ${token}`, apiKey },
       });
-      const data = await res.json();
-      if (res.ok && data.data) {
-        const formatted = data.data.map((s: any) => ({
-          ...s,
+
+      const data: SliderResponse = await res.json();
+
+      if (res.ok && Array.isArray(data.data)) {
+        const formatted: Slider[] = data.data.map((s: SliderApiResponse) => ({
+          id: s.id,
+          media_type: s.media_type,
+          media_path: s.media_path,
+          is_active: Boolean(s.is_active),
           media_url: MEDIA_URL + s.media_path,
         }));
         setSliders(formatted);
       } else {
+        setSliders([]);
         setAlert({
           variant: "error",
           title: "Error",
           message: data.message || "Failed to fetch sliders.",
         });
       }
-    } catch {
+    } catch (err) {
+      console.error("fetchSliders:", err);
       setAlert({
         variant: "error",
         title: "Network Error",
@@ -48,16 +97,22 @@ export default function SlidersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [BASE_URL, MEDIA_URL, apiKey, token]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this slider?")) return;
+    if (!token) {
+      setAlert({ variant: "error", title: "Auth", message: "Missing admin token." });
+      return;
+    }
+
     try {
       const res = await fetch(`${BASE_URL}/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}`, apiKey },
       });
-      const data = await res.json();
+      const data: { success?: boolean; message?: string } = await res.json();
+
       if (res.ok && data.success) {
         setSliders((prev) => prev.filter((item) => item.id !== id));
         setAlert({
@@ -72,7 +127,8 @@ export default function SlidersPage() {
           message: data.message || "Failed to delete.",
         });
       }
-    } catch {
+    } catch (err) {
+      console.error("delete slider:", err);
       setAlert({
         variant: "error",
         title: "Error",
@@ -83,7 +139,7 @@ export default function SlidersPage() {
 
   useEffect(() => {
     fetchSliders();
-  }, []);
+  }, [fetchSliders]);
 
   return (
     <div>
@@ -138,9 +194,21 @@ export default function SlidersPage() {
                   <td style={{ padding: "10px" }}>{i + 1}</td>
                   <td style={{ padding: "10px" }}>
                     {s.media_type === "image" ? (
-                      <img src={s.media_url} alt="slider" style={{ width: "100px", borderRadius: "4px" }} />
+                      <div style={{ width: 100, height: 60, position: "relative" }}>
+                        <Image
+                          src={s.media_url || ""}
+                          alt={`slider-${s.id}`}
+                          fill
+                          style={{ objectFit: "cover", borderRadius: 4 }}
+                          sizes="100px"
+                        />
+                      </div>
                     ) : (
-                      <video src={s.media_url} controls style={{ width: "100px", borderRadius: "4px" }} />
+                      <video
+                        src={s.media_url}
+                        controls
+                        style={{ width: "100px", borderRadius: "4px" }}
+                      />
                     )}
                   </td>
                   <td style={{ padding: "10px" }}>{s.media_type}</td>

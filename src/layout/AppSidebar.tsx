@@ -5,19 +5,15 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import {
-  BoxCubeIcon,
   CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
   PageIcon,
   PieChartIcon,
-  PlugInIcon,
-  TableIcon,
   UserCircleIcon,
 } from "../icons/index";
-import { BadgePercent, Boxes, FolderIcon, FolderKanban, Layers3, LayersIcon, Package } from "lucide-react";
+import { BadgePercent, Boxes, FolderKanban, Layers3, Package } from "lucide-react";
 
 type NavItem = {
   name: string;

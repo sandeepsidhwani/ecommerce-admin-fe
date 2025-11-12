@@ -4,9 +4,25 @@ import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Subcategory {
+  id: number;
+  name: string;
+  category_id?: number;
+}
+
+interface AlertType {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+}
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -22,10 +38,11 @@ export default function AddProductPage() {
     subcategory_id: "",
     is_active: true,
   });
-  const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [images, setImages] = useState<File[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,11 +57,13 @@ export default function AddProductPage() {
             headers: { Authorization: `Bearer ${token}`, apiKey },
           }),
         ]);
+
         const catData = await catRes.json();
         const subData = await subRes.json();
+
         if (catData.success && subData.success) {
-          setCategories(catData.data);
-          setSubcategories(subData.data);
+          setCategories(catData.data as Category[]);
+          setSubcategories(subData.data as Subcategory[]);
         } else throw new Error("Failed to fetch options.");
       } catch {
         setAlert({
@@ -56,15 +75,24 @@ export default function AddProductPage() {
         setLoading(false);
       }
     };
+
     fetchOptions();
-  }, []);
+  }, [token, apiKey]);
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    const { name, value, type } = e.target;
+
+    const isChecked =
+      type === "checkbox" && "checked" in e.target ? (e.target as HTMLInputElement).checked : false;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? isChecked : value,
+    }));
   };
+
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setImages(Array.from(e.target.files || []));
@@ -73,6 +101,7 @@ export default function AddProductPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+
     const formData = new FormData();
     Object.entries(form).forEach(([key, value]) => formData.append(key, String(value)));
     images.forEach((file) => formData.append("images", file));
@@ -84,6 +113,7 @@ export default function AddProductPage() {
         body: formData,
       });
       const data = await res.json();
+
       if (data.success) {
         setAlert({
           variant: "success",
@@ -123,7 +153,7 @@ export default function AddProductPage() {
 
       <ComponentCard title="Add New Product">
         {loading ? (
-         <p style={{ textAlign: "center" }}>Loading...</p>
+          <p style={{ textAlign: "center" }}>Loading...</p>
         ) : (
           <form
             onSubmit={handleSubmit}
@@ -284,9 +314,9 @@ export default function AddProductPage() {
             </div>
 
             <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
-              <Button type="submit" disabled={submitting}>
+              <button type="submit" disabled={submitting}>
                 {submitting ? "Submitting..." : "Create Product"}
-              </Button>
+              </button>
             </div>
           </form>
         )}

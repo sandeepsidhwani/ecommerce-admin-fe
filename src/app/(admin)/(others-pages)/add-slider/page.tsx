@@ -1,12 +1,17 @@
 "use client";
 
-import React, { useState, FormEvent } from "react";
+import React, { useState, FormEvent, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
+
+interface AlertType {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+}
 
 export default function AddSliderPage() {
   const router = useRouter();
@@ -16,7 +21,7 @@ export default function AddSliderPage() {
   const [mediaType, setMediaType] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isActive, setIsActive] = useState(true);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -38,11 +43,14 @@ export default function AddSliderPage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("https://ecommerce.sidhwanitechnologies.com/api/v1/admin/slider", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, apiKey },
-        body: formData,
-      });
+      const res = await fetch(
+        "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/slider",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, apiKey },
+          body: formData,
+        }
+      );
       const data = await res.json();
 
       if (res.ok && data.success) {
@@ -67,6 +75,12 @@ export default function AddSliderPage() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
     }
   };
 
@@ -104,7 +118,7 @@ export default function AddSliderPage() {
             <input
               type="file"
               accept={mediaType ? `${mediaType}/*` : "*/*"}
-              onChange={(e: any) => setFile(e.target.files[0])}
+              onChange={handleFileChange}
               style={{
                 width: "100%",
                 padding: "8px",
@@ -126,9 +140,9 @@ export default function AddSliderPage() {
             </label>
           </div>
 
-          <Button type="submit" disabled={saving}>
+          <button type="submit" disabled={saving}>
             {saving ? "Saving..." : "Create"}
-          </Button>
+          </button>
         </form>
       </ComponentCard>
     </div>

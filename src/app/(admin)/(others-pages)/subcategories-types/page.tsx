@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
@@ -10,6 +10,7 @@ import Link from "next/link";
 import { parseCookies } from "nookies";
 import { Pencil, Trash2, Plus } from "lucide-react";
 
+// ✅ Type definitions
 type SubcategoryType = {
   id: number;
   name: string;
@@ -18,97 +19,129 @@ type SubcategoryType = {
   subcategory?: { id: number; name: string };
 };
 
+type ApiResponse = {
+  data?: SubcategoryType[];
+  results?: SubcategoryType[];
+  total?: number;
+  meta?: { total?: number };
+  pagination?: { total?: number };
+  success?: boolean;
+  message?: string;
+};
+
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
+
 export default function SubcategoryTypesPage() {
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
+  const BASE_URL =
+    "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory-type";
 
   const [types, setTypes] = useState<SubcategoryType[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const itemsPerPage = 20;
 
-  const headers = { Authorization: `Bearer ${token}`, apiKey };
+  // ✅ FIX: Memoize headers so they don’t change on every render
+  const headers = useMemo<HeadersInit>(
+    () => ({
+      Authorization: `Bearer ${token}`,
+      apiKey,
+    }),
+    [token, apiKey]
+  );
 
-  const extractTotalFromResponse = (resp: any): number | null => {
+  // ✅ Helper to extract total count safely
+  const extractTotalFromResponse = (resp: ApiResponse): number | null => {
     if (!resp) return null;
     if (typeof resp.total === "number") return resp.total;
-    if (resp.meta && typeof resp.meta.total === "number") return resp.meta.total;
-    if (resp.pagination && typeof resp.pagination.total === "number")
-      return resp.pagination.total;
+    if (resp.meta?.total) return resp.meta.total;
+    if (resp.pagination?.total) return resp.pagination.total;
     return null;
   };
 
-  const fetchTypes = async (page = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("limit", String(itemsPerPage));
+  // ✅ Fetch subcategory types
+  const fetchTypes = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(itemsPerPage),
+        });
 
-      const res = await fetch(
-        `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory-type?${params.toString()}`,
-        { headers }
-      );
+        const res = await fetch(`${BASE_URL}?${params.toString()}`, { headers });
+        const data: ApiResponse = await res.json();
 
-      const data = await res.json();
-      const arrayData =
-        (data && Array.isArray(data.data) && data.data) ||
-        (data && Array.isArray(data.results) && data.results) ||
-        [];
+        const arrayData =
+          (Array.isArray(data.data) && data.data) ||
+          (Array.isArray(data.results) && data.results) ||
+          [];
 
-      setTypes(arrayData);
+        setTypes(arrayData);
 
-      const extractedTotal = extractTotalFromResponse(data);
-      if (extractedTotal !== null) {
-        setTotalCount(extractedTotal);
-      } else if (totalCount === null) {
-        setTotalCount(1087); // fallback total count
+        const extractedTotal = extractTotalFromResponse(data);
+        if (extractedTotal !== null) {
+          setTotalCount(extractedTotal);
+        } else if (totalCount === null) {
+          setTotalCount(1087); // fallback value
+        }
+
+        setCurrentPage(page);
+      } catch (err) {
+        console.error("fetchTypes error:", err);
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: `Failed to load subcategory types for page ${page}`,
+        });
+      } finally {
+        setLoading(false);
       }
+    },
+    [BASE_URL, headers, itemsPerPage, totalCount]
+  );
 
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("fetchTypes error:", err);
-      setAlert({
-        variant: "error",
-        title: "Error",
-        message: "Failed to load subcategory types for page " + page,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ✅ Initial load
   useEffect(() => {
     fetchTypes(1);
-  }, []);
+  }, [fetchTypes]);
 
+  // ✅ Delete logic
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this subcategory type?")) return;
     try {
-      const res = await fetch(
-        `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory-type/${id}`,
-        {
-          method: "DELETE",
-          headers,
-        }
-      );
-      const data = await res.json();
+      const res = await fetch(`${BASE_URL}/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+      const data: ApiResponse = await res.json();
+
       if (data.success) {
         setAlert({
           variant: "success",
           title: "Deleted",
           message: "Subcategory type deleted successfully!",
         });
+
         const computedTotal = (totalCount ?? 1087) - 1;
         const computedPages = Math.max(1, Math.ceil(computedTotal / itemsPerPage));
         const nextPage = Math.min(currentPage, computedPages);
+
         setTotalCount(computedTotal);
         await fetchTypes(nextPage);
       } else {
-        setAlert({ variant: "error", title: "Error", message: "Delete failed." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: data.message || "Delete failed.",
+        });
       }
     } catch (err) {
       console.error(err);
@@ -116,6 +149,7 @@ export default function SubcategoryTypesPage() {
     }
   };
 
+  // ✅ Pagination Logic
   const actualTotal = totalCount ?? 1087;
   const totalPages = Math.max(1, Math.ceil(actualTotal / itemsPerPage));
 
@@ -125,10 +159,12 @@ export default function SubcategoryTypesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const buildPageButtons = (total: number, current: number, maxButtons = 10) => {
-    if (total <= maxButtons) {
-      return Array.from({ length: total }, (_, i) => i + 1);
-    }
+  const buildPageButtons = (
+    total: number,
+    current: number,
+    maxButtons = 10
+  ): (number | string)[] => {
+    if (total <= maxButtons) return Array.from({ length: total }, (_, i) => i + 1);
 
     const pages: (number | string)[] = [];
     const siblingCount = Math.floor((maxButtons - 3) / 2);
@@ -149,12 +185,12 @@ export default function SubcategoryTypesPage() {
     for (let p = start; p <= end; p++) pages.push(p);
     if (end < total - 1) pages.push("...");
     pages.push(total);
-
     return pages;
   };
 
   const pageButtons = buildPageButtons(totalPages, currentPage, 12);
 
+  // ✅ UI
   return (
     <div>
       <PageBreadcrumb pageTitle="Subcategory Types" />
@@ -169,6 +205,7 @@ export default function SubcategoryTypesPage() {
       )}
 
       <ComponentCard title="Subcategory Type List">
+        {/* Add Button */}
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "15px" }}>
           <Link href="/add-subcategory-types">
             <Button
@@ -188,10 +225,16 @@ export default function SubcategoryTypesPage() {
           </Link>
         </div>
 
+        {/* Table */}
         {loading ? (
           <p style={{ textAlign: "center" }}>Loading...</p>
         ) : types.length === 0 ? (
-          <Alert variant="info" title="No Data" message="No subcategory types found." showLink={false} />
+          <Alert
+            variant="info"
+            title="No Data"
+            message="No subcategory types found."
+            showLink={false}
+          />
         ) : (
           <>
             <table
@@ -203,7 +246,13 @@ export default function SubcategoryTypesPage() {
               }}
             >
               <thead>
-                <tr style={{ background: "#f9fafb", textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
+                <tr
+                  style={{
+                    background: "#f9fafb",
+                    textAlign: "left",
+                    borderBottom: "2px solid #e5e7eb",
+                  }}
+                >
                   <th style={{ padding: "10px" }}>#</th>
                   <th style={{ padding: "10px" }}>Name</th>
                   <th style={{ padding: "10px" }}>Category</th>
@@ -272,6 +321,7 @@ export default function SubcategoryTypesPage() {
               </tbody>
             </table>
 
+            {/* Pagination */}
             {totalPages > 1 && (
               <div
                 style={{
@@ -293,14 +343,14 @@ export default function SubcategoryTypesPage() {
 
                 {pageButtons.map((p, i) =>
                   typeof p === "string" ? (
-                    <span key={"dot-" + i} style={{ padding: "8px 6px" }}>
+                    <span key={`dot-${i}`} style={{ padding: "8px 6px" }}>
                       {p}
                     </span>
                   ) : (
                     <Button
                       key={p}
-                      variant={currentPage === p ? "solid" : "outline"}
-                      onClick={() => handlePageChange(p as number)}
+                      variant={currentPage === p ? "primary" : "outline"}
+                      onClick={() => handlePageChange(p)}
                       style={{
                         minWidth: "36px",
                         borderRadius: "6px",

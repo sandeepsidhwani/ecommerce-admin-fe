@@ -4,9 +4,9 @@ import React, { useState, FormEvent, ChangeEvent } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function AddCategoryPage() {
   const router = useRouter();
@@ -170,25 +170,27 @@ export default function AddCategoryPage() {
 
           {form.image && (
             <div style={{ gridColumn: "1 / -1", textAlign: "center" }}>
-              <img
+              <Image
                 src={URL.createObjectURL(form.image)}
                 alt="Preview"
+                width={120}
+                height={120}
                 style={{
-                  width: "120px",
-                  height: "120px",
                   borderRadius: "8px",
                   objectFit: "cover",
                   marginTop: "10px",
                   border: "1px solid #ccc",
                 }}
+                unoptimized
               />
             </div>
           )}
 
+
           <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
-            <Button type="submit" disabled={submitting}>
+            <button type="submit" disabled={submitting}>
               {submitting ? "Submitting..." : "Add Category"}
-            </Button>
+            </button>
           </div>
         </form>
       </ComponentCard>

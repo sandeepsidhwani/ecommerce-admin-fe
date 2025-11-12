@@ -1,28 +1,53 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { parseCookies } from "nookies";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
+
+type Category = { id: number; name: string };
+type Subcategory = { id: number; name: string };
+
+type Association = { category_id?: number; subcategory_id?: number };
+
+type Coupon = {
+  id: number;
+  name: string;
+  type: string;
+  amount: number | string;
+  expiry_date: string;
+  total_coupons: number;
+  total_used_coupons?: number;
+  min_order_value?: number | string;
+  is_active: boolean;
+  associations?: Association[];
+  // other possible fields from API may exist; keep optional
+};
+
+type AlertState = {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+};
 
 export default function CouponsPage() {
   const { adminToken: token } = parseCookies();
   const apiKey = "ecommerceapp";
 
-  const [coupons, setCoupons] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [alert, setAlert] = useState<AlertState | null>(null);
   const [loading, setLoading] = useState(true);
 
   const BASE_URL = "https://ecommerce.sidhwanitechnologies.com/api/v1/admin";
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
       const [couponRes, catRes, subRes] = await Promise.all([
         fetch(`${BASE_URL}/coupon`, {
@@ -36,13 +61,31 @@ export default function CouponsPage() {
         }),
       ]);
 
-      const couponData = await couponRes.json();
-      const catData = await catRes.json();
-      const subData = await subRes.json();
+      const [couponData, catData, subData] = await Promise.all([
+        couponRes.json().catch(() => ({})),
+        catRes.json().catch(() => ({})),
+        subRes.json().catch(() => ({})),
+      ]);
 
-      if (couponData.success) setCoupons(couponData.coupons || []);
-      if (catData.success) setCategories(catData.data || []);
-      if (subData.success) setSubcategories(subData.data || []);
+      // coupons may be returned under different keys depending on API shape
+      const receivedCoupons: Coupon[] =
+        (couponData && (couponData.data || couponData.coupons || couponData.rows)) ??
+        [];
+
+      if (Array.isArray(receivedCoupons)) setCoupons(receivedCoupons as Coupon[]);
+
+      if (catData && Array.isArray(catData.data)) setCategories(catData.data as Category[]);
+      if (subData && Array.isArray(subData.data))
+        setSubcategories(subData.data as Subcategory[]);
+
+      // If API sent error messages, surface them
+      if (couponData && couponData.success === false) {
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: couponData.message || "Failed to load coupons.",
+        });
+      }
     } catch {
       setAlert({
         variant: "error",
@@ -52,7 +95,7 @@ export default function CouponsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [BASE_URL, apiKey, token]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this coupon?")) return;
@@ -62,7 +105,7 @@ export default function CouponsPage() {
         headers: { Authorization: `Bearer ${token}`, apiKey },
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && (data.success ?? true)) {
         setCoupons((prev) => prev.filter((c) => c.id !== id));
         setAlert({
           variant: "success",
@@ -73,7 +116,7 @@ export default function CouponsPage() {
         setAlert({
           variant: "error",
           title: "Error",
-          message: data.message || "Failed to delete coupon.",
+          message: (data && data.message) || "Failed to delete coupon.",
         });
       }
     } catch {
@@ -85,28 +128,29 @@ export default function CouponsPage() {
     }
   };
 
-  const getAssociations = (coupon: any) => {
-    if (!coupon.associations || coupon.associations.length === 0) return "-";
+  const getAssociations = (coupon: Coupon) => {
+    const assocs = coupon.associations;
+    if (!assocs || assocs.length === 0) return "-";
 
     const assocTexts: string[] = [];
 
-    coupon.associations.forEach((a: any) => {
-      if (a.category_id) {
+    assocs.forEach((a) => {
+      if (a.category_id !== undefined && a.category_id !== null) {
         const cat = categories.find((c) => c.id === a.category_id);
         assocTexts.push(cat ? `Category: ${cat.name}` : `Category #${a.category_id}`);
       }
-      if (a.subcategory_id) {
+      if (a.subcategory_id !== undefined && a.subcategory_id !== null) {
         const sub = subcategories.find((s) => s.id === a.subcategory_id);
         assocTexts.push(sub ? `Subcategory: ${sub.name}` : `Subcategory #${a.subcategory_id}`);
       }
     });
 
-    return assocTexts.join(", ");
+    return assocTexts.length ? assocTexts.join(", ") : "-";
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   return (
     <div>
@@ -116,9 +160,8 @@ export default function CouponsPage() {
       <ComponentCard title="Coupons List">
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "15px" }}>
           <Link href="/add-coupons">
-            <Button
+            <button
               color="primary"
-              variant="outline"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -129,7 +172,7 @@ export default function CouponsPage() {
               }}
             >
               <Plus style={{ width: "16px", height: "16px" }} /> Create Coupon
-            </Button>
+            </button>
           </Link>
         </div>
 
@@ -166,16 +209,18 @@ export default function CouponsPage() {
                   <td style={{ padding: "10px" }}>{i + 1}</td>
                   <td style={{ padding: "10px" }}>{c.name}</td>
                   <td style={{ padding: "10px" }}>{c.type}</td>
-                  <td style={{ padding: "10px" }}>{c.amount}</td>
-                  <td style={{ padding: "10px" }}>{new Date(c.expiry_date).toLocaleDateString()}</td>
-                  <td style={{ padding: "10px" }}>{c.min_order_value}</td>
+                  <td style={{ padding: "10px" }}>{String(c.amount)}</td>
+                  <td style={{ padding: "10px" }}>
+                    {c.expiry_date ? new Date(c.expiry_date).toLocaleDateString() : "-"}
+                  </td>
+                  <td style={{ padding: "10px" }}>{String(c.min_order_value ?? "-")}</td>
                   <td style={{ padding: "10px" }}>
                     <Badge color={c.is_active ? "success" : "error"}>
                       {c.is_active ? "Yes" : "No"}
                     </Badge>
                   </td>
                   <td style={{ padding: "10px" }}>
-                    {c.total_used_coupons}/{c.total_coupons}
+                    {String(c.total_used_coupons ?? 0)}/{String(c.total_coupons ?? 0)}
                   </td>
                   <td style={{ padding: "10px" }}>{getAssociations(c)}</td>
                   <td style={{ padding: "10px", textAlign: "center" }}>
@@ -188,7 +233,7 @@ export default function CouponsPage() {
                       }}
                     >
                       <Link href={`/edit-coupon/${c.id}`}>
-                        <Button
+                        <button
                           color="info"
                           style={{
                             width: "36px",
@@ -200,9 +245,9 @@ export default function CouponsPage() {
                           }}
                         >
                           <Pencil style={{ width: "16px", height: "16px" }} />
-                        </Button>
+                        </button>
                       </Link>
-                      <Button
+                      <button
                         color="error"
                         onClick={() => handleDelete(c.id)}
                         style={{
@@ -215,7 +260,7 @@ export default function CouponsPage() {
                         }}
                       >
                         <Trash2 style={{ width: "16px", height: "16px" }} />
-                      </Button>
+                      </button>
                     </div>
                   </td>
                 </tr>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, ChangeEvent } from "react";
+import React, { useEffect, useState, ChangeEvent, useCallback } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
@@ -21,18 +21,39 @@ type Product = {
   subcategory_type_id?: number;
 };
 
+type Category = { id: number; name: string };
+type Subcategory = { id: number; name: string };
+type SubcategoryType = { id: number; name: string };
+
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
+
+type ApiResponseWithTotal = {
+  total?: number;
+  meta?: { total?: number };
+  pagination?: { total?: number };
+  data?: unknown;
+  results?: unknown;
+  success?: boolean;
+};
+
+// ✅ Type guard to detect valid product array
+const isProductArray = (value: unknown): value is Product[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null && "id" in item);
+
 export default function ProductsPage() {
   const apiKey = "ecommerceapp";
   const { adminToken: token } = parseCookies();
+  const headers = React.useMemo(() => ({ Authorization: `Bearer ${token}`, apiKey }), [token]);
 
-  // page items come from server per-page
   const [products, setProducts] = useState<Product[]>([]);
-  // categories/sub filters (server fetched)
-  const [categories, setCategories] = useState<any[]>([]);
-  const [filteredSubcategories, setFilteredSubcategories] = useState<any[]>([]);
-  const [filteredTypes, setFilteredTypes] = useState<any[]>([]);
-
-  const [alert, setAlert] = useState<any>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [filteredSubcategories, setFilteredSubcategories] = useState<Subcategory[]>([]);
+  const [filteredTypes, setFilteredTypes] = useState<SubcategoryType[]>([]);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterVisible, setFilterVisible] = useState(false);
 
@@ -46,117 +67,112 @@ export default function ProductsPage() {
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const itemsPerPage = 20;
 
-  const headers = { Authorization: `Bearer ${token}`, apiKey };
-
-  const extractTotalFromResponse = (resp: any): number | null => {
-    if (!resp) return null;
+  // ✅ Safely extract total count
+  const extractTotalFromResponse = (resp: ApiResponseWithTotal): number | null => {
     if (typeof resp.total === "number") return resp.total;
-    if (resp.meta && typeof resp.meta.total === "number") return resp.meta.total;
-    if (resp.pagination && typeof resp.pagination.total === "number")
-      return resp.pagination.total;
-    if (resp.data && Array.isArray(resp.data) && typeof resp.data.total === "number")
-      return resp.data.total;
+    if (typeof resp.meta?.total === "number") return resp.meta.total;
+    if (typeof resp.pagination?.total === "number") return resp.pagination.total;
     return null;
   };
 
-  const fetchProducts = async (page = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("limit", String(itemsPerPage));
-      if (filters.category_id) params.set("category_id", filters.category_id);
-      if (filters.subcategory_id) params.set("subcategory_id", filters.subcategory_id);
-      if (filters.subcategory_type_id)
-        params.set("subcategory_type_id", filters.subcategory_type_id);
-
-      const url = `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/product?${params.toString()}`;
-
-      const res = await fetch(url, { headers });
-      const data = await res.json();
-
-      const possibleArray =
-        (data && Array.isArray(data.data) && data.data) ||
-        (data && Array.isArray(data.results) && data.results) ||
-        [];
-
-      setProducts(possibleArray);
-
-      const extractedTotal = extractTotalFromResponse(data);
-      if (extractedTotal !== null) {
-        setTotalCount(extractedTotal);
-      } else {
-        if (totalCount === null) setTotalCount(2700);
-      }
-
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("fetchProducts error:", err);
-      setAlert({
-        variant: "error",
-        title: "Error",
-        message: "Failed to load products for page " + page,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const fetchInitialData = async () => {
+  const fetchProducts = useCallback(
+    async (page = 1) => {
       setLoading(true);
       try {
-        const catRes = await fetch(
-          "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/category",
-          { headers }
-        );
-        const catData = await catRes.json();
-        if (catData.success && Array.isArray(catData.data)) setCategories(catData.data);
-        await fetchProducts(1);
-      } catch (err) {
-        console.error(err);
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        params.set("limit", String(itemsPerPage));
+        if (filters.category_id) params.set("category_id", filters.category_id);
+        if (filters.subcategory_id) params.set("subcategory_id", filters.subcategory_id);
+        if (filters.subcategory_type_id)
+          params.set("subcategory_type_id", filters.subcategory_type_id);
+
+        const url = `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/product?${params.toString()}`;
+        const res = await fetch(url, { headers });
+        const data: ApiResponseWithTotal = await res.json();
+
+        // ✅ No `any` here — fully type-safe
+        let productsData: Product[] = [];
+        if (isProductArray(data.data)) productsData = data.data;
+        else if (isProductArray(data.results)) productsData = data.results;
+
+        setProducts(productsData);
+
+        const total = extractTotalFromResponse(data);
+        if (total !== null) setTotalCount(total);
+        else if (totalCount === null) setTotalCount(2700);
+
+        setCurrentPage(page);
+      } catch (error) {
+        console.error("fetchProducts error:", error);
         setAlert({
           variant: "error",
           title: "Error",
-          message: "Failed to load initial data.",
+          message: `Failed to load products for page ${page}.`,
         });
       } finally {
         setLoading(false);
       }
+    },
+    [filters, headers, totalCount]
+  );
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch(
+        "https://ecommerce.sidhwanitechnologies.com/api/v1/admin/category",
+        { headers }
+      );
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) setCategories(data.data);
+    } catch (error) {
+      console.error("fetchCategories error:", error);
+    }
+  }, [headers]);
+
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([fetchCategories(), fetchProducts(1)]);
+      setLoading(false);
     };
+    init();
+  }, [fetchCategories, fetchProducts]);
 
-    fetchInitialData();
-  }, [token]);
-
-  // Fetch subcategories/types for filters
-  const fetchSubcategories = async (categoryId: number) => {
-    try {
-      const res = await fetch(
-        `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory?category_id=${categoryId}`,
-        { headers }
-      );
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setFilteredSubcategories(data.data);
-        setFilteredTypes([]);
+  const fetchSubcategories = useCallback(
+    async (categoryId: number) => {
+      try {
+        const res = await fetch(
+          `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory?category_id=${categoryId}`,
+          { headers }
+        );
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setFilteredSubcategories(data.data);
+          setFilteredTypes([]);
+        }
+      } catch {
+        console.warn("Failed to load subcategories");
       }
-    } catch {
-      console.warn("Failed to load subcategories");
-    }
-  };
+    },
+    [headers]
+  );
 
-  const fetchSubcategoryTypes = async (subcategoryId: number) => {
-    try {
-      const res = await fetch(
-        `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory-type?subcategory_id=${subcategoryId}`,
-        { headers }
-      );
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) setFilteredTypes(data.data);
-    } catch {
-      console.warn("Failed to load subcategory types");
-    }
-  };
+  const fetchSubcategoryTypes = useCallback(
+    async (subcategoryId: number) => {
+      try {
+        const res = await fetch(
+          `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/subcategory-type?subcategory_id=${subcategoryId}`,
+          { headers }
+        );
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) setFilteredTypes(data.data);
+      } catch {
+        console.warn("Failed to load subcategory types");
+      }
+    },
+    [headers]
+  );
 
   const handleFilterChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -184,6 +200,7 @@ export default function ProductsPage() {
     if (name === "subcategory_type_id") {
       setFilters((prev) => ({ ...prev, subcategory_type_id: value }));
     }
+
     setTimeout(() => fetchProducts(1), 0);
   };
 
@@ -199,10 +216,7 @@ export default function ProductsPage() {
     try {
       const res = await fetch(
         `https://ecommerce.sidhwanitechnologies.com/api/v1/admin/product/${id}`,
-        {
-          method: "DELETE",
-          headers,
-        }
+        { method: "DELETE", headers }
       );
       const data = await res.json();
       if (data.success) {
@@ -219,14 +233,13 @@ export default function ProductsPage() {
       } else {
         setAlert({ variant: "error", title: "Error", message: "Delete failed." });
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       setAlert({ variant: "error", title: "Error", message: "Request failed." });
     }
   };
 
-  const actualTotal = totalCount ?? 2700;
-  const totalPages = Math.max(1, Math.ceil(actualTotal / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil((totalCount ?? 2700) / itemsPerPage));
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -234,16 +247,15 @@ export default function ProductsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const buildPageButtons = (total: number, current: number, maxButtons = 10) => {
-    if (total <= maxButtons) {
-      return Array.from({ length: total }, (_, i) => i + 1);
-    }
+  const buildPageButtons = (
+    total: number,
+    current: number,
+    maxButtons = 10
+  ): (number | string)[] => {
+    if (total <= maxButtons) return Array.from({ length: total }, (_, i) => i + 1);
 
     const pages: (number | string)[] = [];
-    const left = 1;
-    const right = total;
-
-    const siblingCount = Math.floor((maxButtons - 3) / 2); // leave space for first,last and two ellipses maybe
+    const siblingCount = Math.floor((maxButtons - 3) / 2);
     let start = Math.max(current - siblingCount, 2);
     let end = Math.min(current + siblingCount, total - 1);
 
@@ -256,16 +268,11 @@ export default function ProductsPage() {
       end = total - 1;
     }
 
-    pages.push(left);
-
+    pages.push(1);
     if (start > 2) pages.push("...");
-
     for (let p = start; p <= end; p++) pages.push(p);
-
     if (end < total - 1) pages.push("...");
-
-    pages.push(right);
-
+    pages.push(total);
     return pages;
   };
 
@@ -276,15 +283,11 @@ export default function ProductsPage() {
       <PageBreadcrumb pageTitle="Products" />
 
       {alert && (
-        <Alert
-          variant={alert.variant}
-          title={alert.title}
-          message={alert.message}
-          showLink={false}
-        />
+        <Alert variant={alert.variant} title={alert.title} message={alert.message} showLink={false} />
       )}
 
       <ComponentCard title="Products List">
+        {/* Filter + Add Buttons */}
         <div
           style={{
             display: "flex",
@@ -306,7 +309,7 @@ export default function ProductsPage() {
               borderRadius: "6px",
             }}
           >
-            <Filter style={{ width: "16px", height: "16px" }} />
+            <Filter style={{ width: 16, height: 16 }} />
             {filterVisible ? "Hide Filters" : "Add Filter"}
           </Button>
 
@@ -323,11 +326,12 @@ export default function ProductsPage() {
                 borderRadius: "6px",
               }}
             >
-              <Plus style={{ width: "16px", height: "16px" }} /> Add Product
+              <Plus style={{ width: 16, height: 16 }} /> Add Product
             </Button>
           </Link>
         </div>
 
+        {/* Filters */}
         {filterVisible && (
           <div
             style={{
@@ -339,7 +343,6 @@ export default function ProductsPage() {
               border: "1px solid #ddd",
               borderRadius: "8px",
               background: "#fafafa",
-              transition: "all 0.3s ease",
             }}
           >
             <div>
@@ -348,12 +351,7 @@ export default function ProductsPage() {
                 name="category_id"
                 value={filters.category_id}
                 onChange={handleFilterChange}
-                style={{
-                  width: "100%",
-                  padding: 8,
-                  border: "1px solid #ccc",
-                  borderRadius: 6,
-                }}
+                style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
               >
                 <option value="">Select Category</option>
                 {categories.map((cat) => (
@@ -371,12 +369,7 @@ export default function ProductsPage() {
                   name="subcategory_id"
                   value={filters.subcategory_id}
                   onChange={handleFilterChange}
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    border: "1px solid #ccc",
-                    borderRadius: 6,
-                  }}
+                  style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
                 >
                   <option value="">Select Subcategory</option>
                   {filteredSubcategories.map((sub) => (
@@ -395,12 +388,7 @@ export default function ProductsPage() {
                   name="subcategory_type_id"
                   value={filters.subcategory_type_id}
                   onChange={handleFilterChange}
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    border: "1px solid #ccc",
-                    borderRadius: 6,
-                  }}
+                  style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
                 >
                   <option value="">Select Type</option>
                   {filteredTypes.map((t) => (
@@ -418,11 +406,7 @@ export default function ProductsPage() {
                 variant="outline"
                 color="error"
                 onClick={handleClearFilters}
-                style={{
-                  padding: "8px 14px",
-                  fontWeight: 600,
-                  borderRadius: "6px",
-                }}
+                style={{ padding: "8px 14px", fontWeight: 600, borderRadius: "6px" }}
               >
                 Clear Filters
               </Button>
@@ -430,6 +414,7 @@ export default function ProductsPage() {
           </div>
         )}
 
+        {/* Table */}
         {loading ? (
           <p style={{ textAlign: "center" }}>Loading...</p>
         ) : (
@@ -456,13 +441,7 @@ export default function ProductsPage() {
                   <th style={{ padding: "12px 10px", fontWeight: 600 }}>Price</th>
                   <th style={{ padding: "12px 10px", fontWeight: 600 }}>Quantity</th>
                   <th style={{ padding: "12px 10px", fontWeight: 600 }}>Status</th>
-                  <th
-                    style={{
-                      padding: "12px 10px",
-                      fontWeight: 600,
-                      textAlign: "center",
-                    }}
-                  >
+                  <th style={{ padding: "12px 10px", fontWeight: 600, textAlign: "center" }}>
                     Actions
                   </th>
                 </tr>
@@ -471,14 +450,7 @@ export default function ProductsPage() {
               <tbody>
                 {products.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={6}
-                      style={{
-                        textAlign: "center",
-                        padding: "15px",
-                        color: "#777",
-                      }}
-                    >
+                    <td colSpan={6} style={{ textAlign: "center", padding: "15px", color: "#777" }}>
                       No products found.
                     </td>
                   </tr>
@@ -550,6 +522,7 @@ export default function ProductsPage() {
               </tbody>
             </table>
 
+            {/* Pagination */}
             {totalPages > 1 && (
               <div
                 style={{
@@ -571,13 +544,13 @@ export default function ProductsPage() {
 
                 {pageButtons.map((p, i) =>
                   typeof p === "string" ? (
-                    <span key={"dot-" + i} style={{ padding: "8px 6px" }}>
+                    <span key={`dot-${i}`} style={{ padding: "8px 6px" }}>
                       {p}
                     </span>
                   ) : (
                     <Button
                       key={p}
-                      variant={currentPage === p ? "solid" : "outline"}
+                      variant={currentPage === p ? "primary" : "outline"}
                       onClick={() => handlePageChange(p as number)}
                       style={{
                         minWidth: "36px",

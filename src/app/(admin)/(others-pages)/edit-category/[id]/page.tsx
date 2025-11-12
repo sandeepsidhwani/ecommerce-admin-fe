@@ -6,7 +6,13 @@ import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
+import Image from "next/image";
+
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
 
 export default function EditCategoryPage() {
   const router = useRouter();
@@ -17,13 +23,14 @@ export default function EditCategoryPage() {
   const [name, setName] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [existingImage, setExistingImage] = useState("");
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Fetch category details
+  // ✅ Fetch category details
   useEffect(() => {
-    if (!id) return;
+    if (!id || !token) return;
+
     const fetchCategory = async () => {
       try {
         const res = await fetch(
@@ -32,7 +39,9 @@ export default function EditCategoryPage() {
             headers: { Authorization: `Bearer ${token}`, apiKey },
           }
         );
+
         const data = await res.json();
+
         if (res.ok && data.success && data.data) {
           setName(data.data.name || "");
           setExistingImage(data.data.image_url || "");
@@ -53,10 +62,11 @@ export default function EditCategoryPage() {
         setLoading(false);
       }
     };
-    fetchCategory();
-  }, [id]);
 
-  // Handle form submit
+    fetchCategory();
+  }, [id, token]); // ✅ Added token to dependency array
+
+  // ✅ Handle form submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -87,6 +97,7 @@ export default function EditCategoryPage() {
       );
 
       const data = await res.json();
+
       if (res.ok && data.success) {
         setAlert({
           variant: "success",
@@ -116,6 +127,7 @@ export default function EditCategoryPage() {
     return <p style={{ textAlign: "center" }}>Loading...</p>;
   }
 
+  // ✅ Render Page
   return (
     <div>
       <PageBreadcrumb pageTitle={`Edit Category #${id}`} />
@@ -138,6 +150,7 @@ export default function EditCategoryPage() {
             maxWidth: "500px",
           }}
         >
+          {/* Category Name */}
           <div>
             <label
               style={{
@@ -165,6 +178,7 @@ export default function EditCategoryPage() {
             />
           </div>
 
+          {/* Upload Image */}
           <div>
             <label
               style={{
@@ -178,8 +192,8 @@ export default function EditCategoryPage() {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) =>
-                setImage(e.target.files ? e.target.files[0] : null)
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setImage(e.target.files?.[0] ?? null)
               }
               style={{
                 width: "100%",
@@ -190,12 +204,13 @@ export default function EditCategoryPage() {
             />
           </div>
 
+          {/* Existing Image */}
           {existingImage && (
             <div>
               <p style={{ fontWeight: 500, marginBottom: "6px" }}>
                 Current Image:
               </p>
-              <img
+              <Image
                 src={existingImage}
                 alt="Current Category"
                 width={120}
@@ -209,6 +224,7 @@ export default function EditCategoryPage() {
             </div>
           )}
 
+          {/* Buttons */}
           <div
             style={{
               display: "flex",
@@ -216,23 +232,21 @@ export default function EditCategoryPage() {
               marginTop: "16px",
             }}
           >
-            <Button
+            <button
               type="button"
               color="dark"
-              variant="outline"
               onClick={() => router.push("/categories")}
             >
               Cancel
-            </Button>
+            </button>
 
-            <Button
+            <button
               type="submit"
               color="primary"
-              variant="outline"
               disabled={saving}
             >
               {saving ? "Updating..." : "Update Category"}
-            </Button>
+            </button>
           </div>
         </form>
       </ComponentCard>

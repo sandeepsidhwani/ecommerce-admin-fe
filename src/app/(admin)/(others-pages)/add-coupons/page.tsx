@@ -1,24 +1,50 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Subcategory {
+  id: number;
+  name: string;
+  category_id?: number;
+}
+
+interface CouponForm {
+  name: string;
+  type: "percentage" | "fixed";
+  amount: string;
+  expiry_date: string;
+  total_coupons: string;
+  min_order_value: string;
+  is_active: boolean;
+}
+
+interface AlertData {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+}
 
 export default function AddCouponPage() {
   const apiKey = "ecommerceapp";
   const { adminToken: token } = parseCookies();
   const router = useRouter();
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
-
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CouponForm>({
     name: "",
     type: "percentage",
     amount: "",
@@ -28,10 +54,9 @@ export default function AddCouponPage() {
     is_active: true,
   });
 
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch categories and subcategories
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -47,38 +72,46 @@ export default function AddCouponPage() {
         const catData = await catRes.json();
         const subData = await subRes.json();
 
-        if (catData.success) setCategories(catData.data || []);
-        if (subData.success) setSubcategories(subData.data || []);
+        if (catData.success && Array.isArray(catData.data)) {
+          setCategories(catData.data);
+        }
+        if (subData.success && Array.isArray(subData.data)) {
+          setSubcategories(subData.data);
+        }
       } catch {
-        setAlert({ variant: "error", title: "Error", message: "Failed to load dropdown data." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: "Failed to load dropdown data.",
+        });
       }
     };
 
     fetchOptions();
   }, [token]);
 
-  // Handle input change
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target as any;
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  // Submit form
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setAlert(null);
 
     try {
-      const payload: any = {
+      const payload = {
         ...formData,
-        amount: formData.amount !== "" ? parseFloat(formData.amount) : 0,
-        total_coupons: formData.total_coupons !== "" ? parseInt(formData.total_coupons, 10) : 0,
-        min_order_value: formData.min_order_value !== "" ? parseFloat(formData.min_order_value) : 0,
-        associations: [],
+        amount: formData.amount ? parseFloat(formData.amount) : 0,
+        total_coupons: formData.total_coupons ? parseInt(formData.total_coupons, 10) : 0,
+        min_order_value: formData.min_order_value ? parseFloat(formData.min_order_value) : 0,
+        associations: [] as { category_id?: number; subcategory_id?: number }[],
       };
 
       if (selectedCategory) payload.associations.push({ category_id: Number(selectedCategory) });
@@ -97,13 +130,25 @@ export default function AddCouponPage() {
       const data = await res.json();
 
       if (data.success) {
-        setAlert({ variant: "success", title: "Success", message: "Coupon created successfully!" });
+        setAlert({
+          variant: "success",
+          title: "Success",
+          message: "Coupon created successfully!",
+        });
         setTimeout(() => router.push("/coupons"), 1000);
       } else {
-        setAlert({ variant: "error", title: "Error", message: data.message || "Failed to create coupon." });
+        setAlert({
+          variant: "error",
+          title: "Error",
+          message: data.message || "Failed to create coupon.",
+        });
       }
     } catch {
-      setAlert({ variant: "error", title: "Error", message: "Network request failed." });
+      setAlert({
+        variant: "error",
+        title: "Error",
+        message: "Network request failed.",
+      });
     } finally {
       setLoading(false);
     }
@@ -112,10 +157,20 @@ export default function AddCouponPage() {
   return (
     <div>
       <PageBreadcrumb pageTitle="Add Coupon" />
-      {alert && <Alert variant={alert.variant} title={alert.title} message={alert.message} showLink={false} />}
+      {alert && (
+        <Alert
+          variant={alert.variant}
+          title={alert.title}
+          message={alert.message}
+          showLink={false}
+        />
+      )}
 
       <ComponentCard title="Create New Coupon">
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "15px" }}
+        >
           <input
             type="text"
             name="name"
@@ -218,9 +273,9 @@ export default function AddCouponPage() {
             Active
           </label>
 
-          <Button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading}>
             {loading ? "Saving..." : "Create Coupon"}
-          </Button>
+          </button>
         </form>
       </ComponentCard>
     </div>

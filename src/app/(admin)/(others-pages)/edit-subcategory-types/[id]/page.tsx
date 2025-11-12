@@ -6,18 +6,29 @@ import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import Button from "@/components/ui/button/Button";
 
 type Category = { id: number; name: string };
 type Subcategory = { id: number; name: string };
+type AlertType = {
+  variant: "success" | "error" | "info";
+  title: string;
+  message: string;
+};
+
+type FormDataType = {
+  category_id: string;
+  subcategory_id: string;
+  name: string;
+  is_active: boolean;
+};
 
 export default function EditSubcategoryTypePage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const apiKey = "ecommerceapp";
   const { adminToken: token } = parseCookies();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormDataType>({
     category_id: "",
     subcategory_id: "",
     name: "",
@@ -26,12 +37,14 @@ export default function EditSubcategoryTypePage() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [alert, setAlert] = useState<any>(null);
+  const [alert, setAlert] = useState<AlertType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // ✅ Fetch categories, subcategories, and type details
   useEffect(() => {
-    if (!id) return;
+    if (!id || !token) return;
+
     const fetchData = async () => {
       try {
         const [catRes, subRes, typeRes] = await Promise.all([
@@ -59,7 +72,7 @@ export default function EditSubcategoryTypePage() {
             category_id: String(t.category_id || ""),
             subcategory_id: String(t.subcategory_id || ""),
             name: t.name || "",
-            is_active: t.is_active ? true : false,
+            is_active: !!t.is_active,
           });
         } else {
           setAlert({
@@ -71,24 +84,30 @@ export default function EditSubcategoryTypePage() {
       } catch {
         setAlert({
           variant: "error",
-          title: "Error",
+          title: "Network Error",
           message: "Network error while fetching details.",
         });
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [id]);
 
+    fetchData();
+  }, [id, token]); // ✅ fixed: added token to dependency array
+
+  // ✅ Handle form change
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
+    const target = e.target;
+    const { name, value, type } = target;
+
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" && target instanceof HTMLInputElement ? target.checked : value,
     }));
   };
 
+
+  // ✅ Handle form submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -248,18 +267,17 @@ export default function EditSubcategoryTypePage() {
               marginTop: "16px",
             }}
           >
-            <Button
+            <button
               type="button"
               color="dark"
-              variant="outline"
               onClick={() => router.push("/subcategories-types")}
             >
               Cancel
-            </Button>
+            </button>
 
-            <Button type="submit" disabled={saving}>
+            <button type="submit" disabled={saving}>
               {saving ? "Updating..." : "Update Subcategory Type"}
-            </Button>
+            </button>
           </div>
         </form>
       </ComponentCard>
