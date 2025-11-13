@@ -6,6 +6,7 @@ import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/button/Button";
 
 type Category = { id: number; name: string };
 
@@ -181,10 +182,11 @@ export default function AddSubcategoryPage() {
               Active
             </label>
           </div>
-
-          <button type="submit" disabled={loading}>
-            {loading ? "Submitting..." : "Add Subcategory"}
-          </button>
+          <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
+            <Button type="submit" disabled={loading} variant="primary" style={{ width: "" }}>
+              {loading ? "Submitting..." : "Add Subcategory"}
+            </Button>
+          </div>
         </form>
       </ComponentCard>
     </div>

@@ -6,6 +6,7 @@ import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/button/Button";
 
 interface Category {
   id: number;
@@ -314,9 +315,9 @@ export default function AddProductPage() {
             </div>
 
             <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
-              <button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} variant="primary">
                 {submitting ? "Submitting..." : "Create Product"}
-              </button>
+              </Button>
             </div>
           </form>
         )}

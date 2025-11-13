@@ -7,6 +7,7 @@ import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { EyeCloseIcon, EyeIcon } from "@/icons";
 import { setCookie } from "nookies";
+import Input from "../form/input/InputField";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -86,12 +87,11 @@ export default function AdminLogin() {
               <Label>
                 Email <span className="text-error-500">*</span>
               </Label>
-              <input
+              <Input
                 type="email"
                 placeholder="admin@example.com"
                 value={email}
                 onChange={handleEmailChange}
-                required
               />
             </div>
 
@@ -100,12 +100,11 @@ export default function AdminLogin() {
                 Password <span className="text-error-500">*</span>
               </Label>
               <div className="relative">
-                <input
+                <Input
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   value={password}
                   onChange={handlePasswordChange}
-                  required
                 />
                 <span
                   onClick={() => setShowPassword(!showPassword)}

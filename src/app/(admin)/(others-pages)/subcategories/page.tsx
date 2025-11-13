@@ -272,7 +272,7 @@ export default function SubcategoriesPage() {
                       >
                         <td style={{ padding: "10px" }}>{globalIndex}</td>
                         <td style={{ padding: "10px", fontWeight: 500 }}>{sub.name}</td>
-                        <td style={{ padding: "10px" }}>{sub.category_id}</td>
+                        <td style={{ padding: "20px" }}>{sub.category_id}</td>
                         <td style={{ padding: "10px" }}>
                           <Badge color={sub.is_active ? "success" : "error"} variant="solid">
                             {sub.is_active ? "Active" : "Inactive"}
@@ -289,32 +289,16 @@ export default function SubcategoriesPage() {
                           >
                             <Link href={`/subcategory/${sub.id}`}>
                               <Button
-                                color="info"
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                  width: "36px",
-                                  height: "36px",
-                                  borderRadius: "6px",
-                                }}
+                                 color="info"
                               >
-                                <Pencil style={{ width: "16px", height: "16px" }} />
+                                <Pencil size={15} />
                               </Button>
                             </Link>
                             <Button
                               color="error"
                               onClick={() => handleDelete(sub.id)}
-                              style={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "6px",
-                              }}
                             >
-                              <Trash2 style={{ width: "16px", height: "16px" }} />
+                              <Trash2 size={15} />
                             </Button>
                           </div>
                         </td>

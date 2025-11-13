@@ -139,9 +139,19 @@ export default function CategoriesPage() {
           }}
         >
           <Link href="/add-category">
-            <Button
+            <Button 
+              color="primary"
+              variant="outline"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                fontWeight: 600,
+                borderRadius: "6px",
+              }}
             >
-              <Plus style={{ width: "16px", height: "16px" }} /> Add Category
+              <Plus style={{ width: 16, height: 16 }} /> Add Category
             </Button>
           </Link>
         </div>
@@ -240,34 +250,19 @@ export default function CategoriesPage() {
                         }}
                       >
                         <Link href={`/edit-category/${cat.id}`}>
-                          <button
-                            style={{
-                              display: "flex",
-                              justifyContent: "center",
-                              alignItems: "center",
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "6px",
-                            }}
+                          <Button
+                            color="info"
                           >
-                            <Pencil style={{ width: "16px", height: "16px" }} />
-                          </button>
+                            <Pencil size={15} />
+                          </Button>
                         </Link>
 
-                        <button
+                        <Button
                           color="error"
                           onClick={() => handleDelete(cat.id)}
-                          style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "6px",
-                          }}
                         >
-                          <Trash2 style={{ width: "16px", height: "16px" }} />
-                        </button>
+                          <Trash2 size={15} />
+                        </Button>
                       </div>
                     </td>
                   </tr>

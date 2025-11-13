@@ -486,32 +486,16 @@ export default function ProductsPage() {
                             <Link href={`/product/${p.id}`}>
                               <Button
                                 color="info"
-                                style={{
-                                  width: "36px",
-                                  height: "36px",
-                                  borderRadius: "6px",
-                                  display: "flex",
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                }}
                               >
-                                <Pencil />
+                                <Pencil size={15} />
                               </Button>
                             </Link>
 
                             <Button
                               color="error"
                               onClick={() => handleDelete(p.id)}
-                              style={{
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "6px",
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                              }}
                             >
-                              <Trash2 />
+                              <Trash2 size={15} />
                             </Button>
                           </div>
                         </td>

@@ -7,6 +7,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import Image from "next/image";
+import Button from "@/components/ui/button/Button";
 
 type AlertType = {
   variant: "success" | "error" | "info";
@@ -232,21 +233,21 @@ export default function EditCategoryPage() {
               marginTop: "16px",
             }}
           >
-            <button
-              type="button"
-              color="dark"
-              onClick={() => router.push("/categories")}
-            >
-              Cancel
-            </button>
-
-            <button
+            <Button
               type="submit"
               color="primary"
               disabled={saving}
             >
               {saving ? "Updating..." : "Update Category"}
-            </button>
+            </Button>
+             <Button
+              type="button"
+              color="primary"
+              variant="outline"
+              onClick={() => router.push("/categories")}
+            >
+              Cancel
+            </Button>
           </div>
         </form>
       </ComponentCard>

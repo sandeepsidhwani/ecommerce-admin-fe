@@ -7,6 +7,7 @@ import Alert from "@/components/ui/alert/Alert";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Button from "@/components/ui/button/Button";
 
 export default function AddCategoryPage() {
   const router = useRouter();
@@ -188,9 +189,9 @@ export default function AddCategoryPage() {
 
 
           <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
-            <button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting} variant="primary">
               {submitting ? "Submitting..." : "Add Category"}
-            </button>
+            </Button>
           </div>
         </form>
       </ComponentCard>

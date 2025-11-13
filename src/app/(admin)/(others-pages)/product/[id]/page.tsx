@@ -200,7 +200,7 @@ export default function EditProductPage() {
           title: "Success",
           message: "Product updated successfully!",
         });
-        setTimeout(() => router.push("/admin/products"), 1000);
+        setTimeout(() => router.push("/products"), 1000);
       } else {
         setAlert({
           variant: "error",
@@ -384,14 +384,14 @@ export default function EditProductPage() {
 
           {/* Buttons */}
           <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
-            <Button color="primary" variant="outline" disabled={saving}>
+            <Button color="primary" variant="primary" disabled={saving}>
               {saving ? "Saving..." : "Update Product"}
             </Button>
 
             <Button
               color="primary"
               variant="outline"
-              onClick={() => router.push("/admin/products")}
+              onClick={() => router.push("/products")}
             >
               Cancel
             </Button>
