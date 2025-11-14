@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
     });
     return config;
   },
+  basePath: '/admin',
 };
 
 export default nextConfig;

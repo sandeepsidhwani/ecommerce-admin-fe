@@ -40,7 +40,7 @@ export default function AdminLogin() {
       if (response.ok && data.success && data.token) {
         setCookie(null, "adminToken", data.token, { path: "/" });
         setCookie(null, "adminData", JSON.stringify(data.data), { path: "/" });
-        router.push("/");
+        router.push("/dashboard");
       } else {
         setErrorMsg(data.message || "Login failed. Please try again.");
       }
