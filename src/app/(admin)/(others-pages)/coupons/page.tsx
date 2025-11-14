@@ -8,6 +8,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import Badge from "@/components/ui/badge/Badge";
+import Button from "@/components/ui/button/Button";
 
 type Category = { id: number; name: string };
 type Subcategory = { id: number; name: string };
@@ -160,8 +161,9 @@ export default function CouponsPage() {
       <ComponentCard title="Coupons List">
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "15px" }}>
           <Link href="/add-coupons">
-            <button
+            <Button
               color="primary"
+              variant="outline"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -171,8 +173,8 @@ export default function CouponsPage() {
                 borderRadius: "6px",
               }}
             >
-              <Plus style={{ width: "16px", height: "16px" }} /> Create Coupon
-            </button>
+              <Plus style={{ width: 16, height: 16 }} /> Create Coupon
+            </Button>
           </Link>
         </div>
 
@@ -219,10 +221,10 @@ export default function CouponsPage() {
                       {c.is_active ? "Yes" : "No"}
                     </Badge>
                   </td>
-                  <td style={{ padding: "10px" }}>
+                  <td style={{ padding: "15px" }}>
                     {String(c.total_used_coupons ?? 0)}/{String(c.total_coupons ?? 0)}
                   </td>
-                  <td style={{ padding: "10px" }}>{getAssociations(c)}</td>
+                  <td style={{ padding: "15px" }}>{getAssociations(c)}</td>
                   <td style={{ padding: "10px", textAlign: "center" }}>
                     <div
                       style={{
@@ -233,34 +235,18 @@ export default function CouponsPage() {
                       }}
                     >
                       <Link href={`/edit-coupon/${c.id}`}>
-                        <button
+                        <Button
                           color="info"
-                          style={{
-                            width: "36px",
-                            height: "36px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "6px",
-                          }}
                         >
-                          <Pencil style={{ width: "16px", height: "16px" }} />
-                        </button>
+                          <Pencil size={15} />
+                        </Button>
                       </Link>
-                      <button
+                      <Button
                         color="error"
                         onClick={() => handleDelete(c.id)}
-                        style={{
-                          width: "36px",
-                          height: "36px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "6px",
-                        }}
                       >
-                        <Trash2 style={{ width: "16px", height: "16px" }} />
-                      </button>
+                        <Trash2 size={15} />
+                      </Button>
                     </div>
                   </td>
                 </tr>

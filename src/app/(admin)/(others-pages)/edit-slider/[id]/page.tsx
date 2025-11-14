@@ -7,6 +7,7 @@ import Image from "next/image"; // ✅ for optimized images
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import Button from "@/components/ui/button/Button";
 
 type AlertType = {
   variant: "success" | "error" | "info";
@@ -43,7 +44,7 @@ export default function EditSliderPage() {
         if (res.ok && data.data) {
           const s = data.data;
           setMediaType(s.media_type);
-          setCurrentFile(MEDIA_URL + s.media_path);
+          setCurrentFile(s.image_url);
           setIsActive(s.is_active);
         } else {
           setAlert({
@@ -200,22 +201,28 @@ export default function EditSliderPage() {
             </div>
 
             {/* Active */}
-            <div>
-              <label style={{ fontWeight: 600 }}>
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  style={{ marginRight: "8px" }}
-                />
-                Active
-              </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+              />
+              <label style={{ fontWeight: 600 }}> Active </label>
             </div>
 
-            {/* Submit */}
-            <button type="submit" disabled={saving}>
-              {saving ? "Updating..." : "Update Slider"}
-            </button>
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+              <Button type="submit" disabled={saving} color="primary" variant="primary">
+                {saving ? "Updating..." : "Update Slider"}
+              </Button>
+              <Button
+                color="primary"
+                variant="outline"
+                onClick={() => router.push("/sliders")}
+              >
+                Cancel
+              </Button>
+            </div>
+
           </form>
         )}
       </ComponentCard>

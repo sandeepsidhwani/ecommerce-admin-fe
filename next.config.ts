@@ -1,15 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-   images: {
+  images: {
     remotePatterns: [
       {
         protocol: "https",
         hostname: "ecomm-media.sidhwanitechnologies.com",
       },
+      {
+        protocol: "https",
+        hostname: "ecommerce.sidhwanitechnologies.com",
+      },
     ],
   },
-  /* config options here */
+
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/,

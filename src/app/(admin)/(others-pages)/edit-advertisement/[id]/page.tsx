@@ -7,6 +7,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import Image from "next/image";
+import Button from "@/components/ui/button/Button";
 
 type AlertType = {
   variant: "success" | "error" | "info";
@@ -193,22 +194,28 @@ export default function EditAdvertisementPage() {
             </div>
 
             {/* Active Checkbox */}
-            <div>
-              <label style={{ fontWeight: 600 }}>
-                <input
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+               <input
                   type="checkbox"
                   checked={isActive}
                   onChange={(e) => setIsActive(e.target.checked)}
-                  style={{ marginRight: "8px" }}
                 />
-                Active
-              </label>
+              <label> Active </label>
             </div>
 
-            {/* Submit Button */}
-            <button type="submit" disabled={saving}>
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+                <Button type="submit" disabled={saving} variant="primary">
               {saving ? "Updating..." : "Update Advertisement"}
-            </button>
+            </Button>
+             <Button
+              color="primary"
+              variant="outline"
+              onClick={() => router.push("/advertisements")}
+            >
+              Cancel
+            </Button>
+            </div>
+            
           </form>
         )}
       </ComponentCard>

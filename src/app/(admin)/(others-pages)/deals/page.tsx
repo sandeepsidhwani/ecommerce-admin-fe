@@ -12,6 +12,7 @@ import Alert from "@/components/ui/alert/Alert";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Button from "@/components/ui/button/Button";
 
 // ---------- Types ----------
 type Category = {
@@ -452,10 +453,17 @@ export default function AddDealPage() {
               )}
             </div>
 
-            <div style={{ gridColumn: "1 / -1", marginTop: 16 }}>
-              <button type="submit" disabled={submitting}>
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+              <Button type="submit" disabled={submitting} variant="primary">
                 {submitting ? "Submitting..." : "Create Deal"}
-              </button>
+              </Button>
+              <Button
+                color="primary"
+                variant="outline"
+              //onClick={() => router.push("/products")}
+              >
+                Cancel
+              </Button>
             </div>
           </form>
         )}

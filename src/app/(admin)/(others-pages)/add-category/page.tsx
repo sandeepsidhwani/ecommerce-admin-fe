@@ -186,11 +186,25 @@ export default function AddCategoryPage() {
               />
             </div>
           )}
+          
+           <br/>
 
-
-          <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
+          <div  
+            style={{
+              display: "flex",
+              gap: "8px",
+              marginTop: "16px",
+            }}>
             <Button type="submit" disabled={submitting} variant="primary">
               {submitting ? "Submitting..." : "Add Category"}
+            </Button>
+             <Button
+              type="button"
+              color="primary"
+              variant="outline"
+              onClick={() => router.push("/categories")}
+            >
+              Cancel
             </Button>
           </div>
         </form>

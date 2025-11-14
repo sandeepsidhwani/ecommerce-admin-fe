@@ -5,6 +5,7 @@ import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { parseCookies, destroyCookie } from "nookies";
 import { useRouter } from "next/navigation";
+import { User, Settings, LogOut } from "lucide-react";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -135,6 +136,7 @@ export default function UserDropdown() {
               href="/profile"
               className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
             >
+             <User size={18} className="text-gray-500 group-hover:text-gray-700 dark:text-gray-400" />
               Edit profile
             </DropdownItem>
           </li>
@@ -145,6 +147,7 @@ export default function UserDropdown() {
               href="/settings"
               className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
             >
+             <Settings size={18} className="text-gray-500 group-hover:text-gray-700 dark:text-gray-400" />
               Account settings
             </DropdownItem>
           </li>
@@ -155,6 +158,7 @@ export default function UserDropdown() {
           disabled={loading}
           className="flex items-center gap-3 px-3 py-2 mt-3 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
         >
+        <LogOut size={18} className="text-gray-500 group-hover:text-gray-700 dark:text-gray-400" />
           Sign out
         </button>
       </Dropdown>

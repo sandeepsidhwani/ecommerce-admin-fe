@@ -313,11 +313,19 @@ export default function AddProductPage() {
               />
               <label>Active</label>
             </div>
+            <br/>
 
-            <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
               <Button type="submit" disabled={submitting} variant="primary">
                 {submitting ? "Submitting..." : "Create Product"}
               </Button>
+                <Button
+                  color="primary"
+                  variant="outline"
+                  onClick={() => router.push("/products")}
+                >
+                  Cancel
+                </Button>
             </div>
           </form>
         )}

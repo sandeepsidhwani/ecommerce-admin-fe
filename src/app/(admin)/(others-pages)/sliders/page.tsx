@@ -211,7 +211,7 @@ export default function SlidersPage(): JSX.Element {
                       />
                     )}
                   </td>
-                  <td style={{ padding: "10px" }}>{s.media_type}</td>
+                  <td style={{ padding: "20px" }}>{s.media_type}</td>
                   <td style={{ padding: "10px" }}>
                     <Badge
                       color={s.is_active ? "success" : "error"}
@@ -236,31 +236,15 @@ export default function SlidersPage(): JSX.Element {
                       <Link href={`/edit-slider/${s.id}`}>
                         <Button
                           color="info"
-                          style={{
-                            width: "36px",
-                            height: "36px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "6px",
-                          }}
                         >
-                          <Pencil style={{ width: "16px", height: "16px" }} />
+                          <Pencil size={15} />
                         </Button>
                       </Link>
                       <Button
                         color="error"
                         onClick={() => handleDelete(s.id)}
-                        style={{
-                          width: "36px",
-                          height: "36px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "6px",
-                        }}
                       >
-                        <Trash2 style={{ width: "16px", height: "16px" }} />
+                        <Trash2 size={15} />
                       </Button>
                     </div>
                   </td>

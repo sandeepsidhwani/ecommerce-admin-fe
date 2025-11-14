@@ -6,6 +6,7 @@ import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import Button from "@/components/ui/button/Button";
 
 type Category = { id: number; name: string };
 type Subcategory = { id: number; name: string; category_id?: number };
@@ -421,7 +422,7 @@ export default function EditCouponPage() {
 
             {/* Row 4 */}
             <div>
-              <label style={{ fontWeight: 600 }}>
+              <label>
                 <input
                   type="checkbox"
                   name="is_active"
@@ -433,9 +434,19 @@ export default function EditCouponPage() {
               </label>
             </div>
 
-            <button type="submit" disabled={saving}>
-              {saving ? "Updating..." : "Update Coupon"}
-            </button>
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+              <Button type="submit" disabled={saving} color="primary" variant="primary">
+                {saving ? "Updating..." : "Update Coupon"}
+              </Button>
+              <Button
+                color="primary"
+                variant="outline"
+                onClick={() => router.push("/coupons")}
+              >
+                Cancel
+              </Button>
+            </div>
+
           </form>
         )}
       </ComponentCard>

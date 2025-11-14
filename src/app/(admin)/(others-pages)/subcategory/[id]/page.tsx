@@ -199,16 +199,16 @@ export default function EditSubcategoryPage() {
           </div>
 
           <div style={{ display: "flex", gap: "8px" }}>
-            <Button
+            <Button type="submit" color="primary" disabled={saving}>
+              {saving ? "Updating..." : "Update Subcategory"}
+            </Button>
+             <Button
               color="dark"
               variant="outline"
               type="button"
-              onClick={() => router.push("/admin/subcategories")}
+              onClick={() => router.push("/subcategories")}
             >
               Cancel
-            </Button>
-            <Button type="submit" color="primary" disabled={saving}>
-              {saving ? "Updating..." : "Update Subcategory"}
             </Button>
           </div>
         </form>

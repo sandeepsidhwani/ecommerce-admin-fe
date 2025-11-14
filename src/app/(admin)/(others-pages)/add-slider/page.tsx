@@ -6,6 +6,7 @@ import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import Button from "@/components/ui/button/Button";
 
 interface AlertType {
   variant: "success" | "error" | "warning" | "info";
@@ -140,9 +141,19 @@ export default function AddSliderPage() {
             </label>
           </div>
 
-          <button type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Create"}
-          </button>
+          <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+            <Button type="submit" disabled={saving} variant="primary">
+              {saving ? "Saving..." : "Create"}
+            </Button>
+            <Button
+              color="primary"
+              variant="outline"
+              onClick={() => router.push("/sliders")}
+            >
+              Cancel
+            </Button>
+          </div>
+
         </form>
       </ComponentCard>
     </div>

@@ -6,6 +6,7 @@ import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/button/Button";
 
 
 interface Category {
@@ -273,9 +274,19 @@ export default function AddCouponPage() {
             Active
           </label>
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Saving..." : "Create Coupon"}
-          </button>
+          <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+            <Button type="submit" disabled={loading} variant="primary">
+              {loading ? "Saving..." : "Create Coupon"}
+            </Button>
+            <Button
+              color="primary"
+              variant="outline"
+              onClick={() => router.push("/coupons")}
+            >
+              Cancel
+            </Button>
+          </div>
+
         </form>
       </ComponentCard>
     </div>

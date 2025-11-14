@@ -6,6 +6,7 @@ import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import Button from "@/components/ui/button/Button";
 
 type Category = { id: number; name: string };
 type Subcategory = { id: number; name: string };
@@ -267,17 +268,17 @@ export default function EditSubcategoryTypePage() {
               marginTop: "16px",
             }}
           >
-            <button
+            <Button type="submit" disabled={saving} color="primary" variant="primary" >
+              {saving ? "Updating..." : "Update Subcategory Type"}
+            </Button>
+             <Button
               type="button"
-              color="dark"
+              color="primary"
+              variant="outline"
               onClick={() => router.push("/subcategories-types")}
             >
               Cancel
-            </button>
-
-            <button type="submit" disabled={saving}>
-              {saving ? "Updating..." : "Update Subcategory Type"}
-            </button>
+            </Button>
           </div>
         </form>
       </ComponentCard>

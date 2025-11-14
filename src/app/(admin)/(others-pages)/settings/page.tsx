@@ -299,7 +299,7 @@ export default function SettingsPage() {
                 color="primary"
                 type="submit"
                 disabled={saving}
-                style={{ marginTop: "10px" }}
+                style={{ marginTop: "10px", width: "160px" }}
               >
                 {saving ? "Saving..." : "Save Email Config"}
               </Button>

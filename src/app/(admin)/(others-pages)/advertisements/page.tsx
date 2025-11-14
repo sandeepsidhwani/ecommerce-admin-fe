@@ -126,7 +126,9 @@ export default function AdvertisementsPage() {
           }}
         >
           <Link href="/add-advertisement">
-            <button
+            <Button
+            color="primary"
+              variant="outline"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -134,23 +136,10 @@ export default function AdvertisementsPage() {
                 padding: "8px 14px",
                 fontWeight: 600,
                 borderRadius: "6px",
-                border: "1px solid #4f46e5",
-                color: "#4f46e5",
-                backgroundColor: "transparent",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-              }}
-              onMouseOver={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#4f46e5";
-                (e.currentTarget as HTMLButtonElement).style.color = "#fff";
-              }}
-              onMouseOut={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-                (e.currentTarget as HTMLButtonElement).style.color = "#4f46e5";
               }}
             >
-              <Plus style={{ width: "16px", height: "16px" }} /> Add Advertisement
-            </button>
+              <Plus style={{ width: 16, height: 16 }} /> Add Advertisement
+            </Button>
           </Link>
 
 
@@ -212,7 +201,7 @@ export default function AdvertisementsPage() {
                       />
                     )}
                   </td>
-                  <td style={{ padding: "10px" }}>{a.media_type}</td>
+                  <td style={{ padding: "20px" }}>{a.media_type}</td>
                   <td style={{ padding: "10px" }}>
                     <Badge color={a.is_active ? "success" : "error"}>
                       {a.is_active ? "Active" : "Inactive"}
@@ -228,15 +217,15 @@ export default function AdvertisementsPage() {
                       }}
                     >
                       <Link href={`/edit-advertisement/${a.id}`}>
-                        <Button
+                        <Button color="info"
                         >
-                          <Pencil style={{ width: "16px", height: "16px" }} />
+                          <Pencil size={15} />
                         </Button>
                       </Link>
-                      <Button
+                      <Button color="error"
                         onClick={() => handleDelete(a.id)}
                       >
-                        <Trash2 style={{ width: "16px", height: "16px" }} />
+                        <Trash2 size={15} />
                       </Button>
                     </div>
                   </td>

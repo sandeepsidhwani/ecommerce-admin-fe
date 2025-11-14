@@ -6,6 +6,7 @@ import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import { parseCookies } from "nookies";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/button/Button";
 
 type Category = { id: number; name: string };
 type Subcategory = { id: number; name: string };
@@ -234,37 +235,31 @@ export default function AddSubcategoryTypePage() {
             </div>
 
             {/* Active checkbox */}
-            <div style={{ marginTop: "10px" }}>
-              <label style={{ fontWeight: 600 }}>
-                <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={form.is_active}
-                  onChange={handleChange}
-                  style={{ marginRight: "6px" }}
-                />
-                Active
-              </label>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <input
+                type="checkbox"
+                name="is_active"
+                checked={form.is_active}
+                onChange={handleChange}
+              />
+              <label>Active</label>
             </div>
 
-            {/* Submit Button */}
-            <div style={{ gridColumn: "1 / -1", marginTop: "16px" }}>
-              <button
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px", gridColumn: "1 / -1", }}>
+              <Button
                 type="submit"
                 disabled={submitting}
-                style={{
-                  backgroundColor: "#4f46e5",
-                  color: "#fff",
-                  border: "none",
-                  padding: "10px 16px",
-                  borderRadius: "6px",
-                  fontWeight: 600,
-                  cursor: submitting ? "not-allowed" : "pointer",
-                  opacity: submitting ? 0.7 : 1,
-                }}
+                variant="primary"
               >
                 {submitting ? "Submitting..." : "Add Subcategory Type"}
-              </button>
+              </Button>
+               <Button
+                  color="primary"
+                  variant="outline"
+                  onClick={() => router.push("/subcategories-types")}
+                >
+                  Cancel
+                </Button>
             </div>
           </form>
         )}

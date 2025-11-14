@@ -235,7 +235,10 @@ export default function EditPaymentGatewayPage() {
             <Button color="primary" type="submit" disabled={saving}>
               {saving ? "Saving..." : "Save Changes"}
             </Button>
-            <Button color="secondary" onClick={() => router.push("/settings")}>
+            <Button  
+              color="dark"
+              variant="outline"
+              onClick={() => router.push("/settings")}>
               Cancel
             </Button>
           </div>

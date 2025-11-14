@@ -6,6 +6,7 @@ import { parseCookies } from "nookies";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import Button from "@/components/ui/button/Button";
 
 interface AlertType {
   variant: "success" | "error" | "info" | "warning";
@@ -140,23 +141,23 @@ export default function AddAdvertisementPage() {
             </label>
           </div>
 
-          {/* ✅ Fixed button */}
-          <button
-            type="submit"
-            disabled={saving}
-            style={{
-              backgroundColor: "#4f46e5",
-              color: "#fff",
-              border: "none",
-              padding: "10px 16px",
-              borderRadius: "6px",
-              fontWeight: 600,
-              cursor: saving ? "not-allowed" : "pointer",
-              opacity: saving ? 0.7 : 1,
-            }}
-          >
-            {saving ? "Saving..." : "Create Advertisement"}
-          </button>
+          <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+            <Button
+              type="submit"
+              disabled={saving}
+              variant="primary"
+            >
+              {saving ? "Saving..." : "Create Advertisement"}
+            </Button>
+            <Button
+              color="primary"
+              variant="outline"
+              onClick={() => router.push("/advertisements")}
+            >
+              Cancel
+            </Button>
+          </div>
+
         </form>
       </ComponentCard>
     </div>

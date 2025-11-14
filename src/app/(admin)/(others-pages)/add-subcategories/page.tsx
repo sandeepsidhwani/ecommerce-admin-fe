@@ -182,9 +182,17 @@ export default function AddSubcategoryPage() {
               Active
             </label>
           </div>
-          <div style={{ gridColumn: "1 / -1", textAlign: "left" }}>
+          <br/>
+          <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
             <Button type="submit" disabled={loading} variant="primary" style={{ width: "" }}>
               {loading ? "Submitting..." : "Add Subcategory"}
+            </Button>
+            <Button
+              color="primary"
+              variant="outline"
+              onClick={() => router.push("/subcategories")}
+            >
+              Cancel
             </Button>
           </div>
         </form>

@@ -287,31 +287,15 @@ export default function SubcategoryTypesPage() {
                           <Link href={`/edit-subcategory-types/${t.id}`}>
                             <Button
                               color="info"
-                              style={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "6px",
-                              }}
                             >
-                              <Pencil style={{ width: "16px", height: "16px" }} />
+                              <Pencil size={15} />
                             </Button>
                           </Link>
                           <Button
                             color="error"
                             onClick={() => handleDelete(t.id)}
-                            style={{
-                              display: "flex",
-                              justifyContent: "center",
-                              alignItems: "center",
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "6px",
-                            }}
                           >
-                            <Trash2 style={{ width: "16px", height: "16px" }} />
+                            <Trash2 size={15} />
                           </Button>
                         </div>
                       </td>

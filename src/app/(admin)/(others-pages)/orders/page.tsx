@@ -278,19 +278,11 @@ export default function OrdersPage() {
                           {order.created_at ? new Date(String(order.created_at)).toLocaleDateString() : "-"}
                         </td>
                         <td style={{ padding: "10px", textAlign: "center" }}>
-                          <Link href={`/admin/orders/${order.id}`}>
+                          <Link href={`/orders/${order.id}`}>
                             <Button
                               color="info"
-                              style={{
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "6px",
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                              }}
                             >
-                              <Eye />
+                              <Eye size={15}/>
                             </Button>
                           </Link>
                         </td>
